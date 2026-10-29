@@ -5,7 +5,9 @@
 # They are not needed for basic operation (GNSS is served by a stub HAL). Disable them.
 # Permanent fix: remove these from PRODUCT_PACKAGES.
 for p in com.qualcomm.location com.quicinc.cne.CNEService com.qti.dpmserviceapp \
-         com.qti.service.colorservice com.qualcomm.svi com.qualcomm.cabl com.qualcomm.qti.tetherservice com.qualcomm.qcrilmsgtunnel; do
+         com.qti.service.colorservice com.qualcomm.svi com.qualcomm.cabl com.qualcomm.qti.tetherservice com.qualcomm.qcrilmsgtunnel \
+         com.qualcomm.qti.logkit com.qualcomm.qti.qcom_accesslogkit \
+         org.codeaurora.ims com.qualcomm.qti.ims com.qualcomm.embms com.qualcomm.atfwd; do
   pm disable "$p" 2>/dev/null
 done
 echo "incompatible QC apps disabled"

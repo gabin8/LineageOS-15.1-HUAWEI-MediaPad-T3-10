@@ -10,3 +10,14 @@ In `device/huawei/ags_w09/proprietary-files.txt`, comment out the two entries so
 
     # vendor/lib/hw/lights.msm8937.so
     # vendor/lib64/hw/lights.msm8937.so
+
+## Other vendor blobs not to ship (removed from `ags_w09-vendor.mk`, commented in `proprietary-files.txt`)
+
+| Blob / package | Why |
+|---|---|
+| `vendor/bin/bootstat`, `vendor/etc/init/bootstat.rc` | stale Android 8.0 copies; the rc resets `/data/misc/bootstat` to root:root → 8.1 bootstat aborts |
+| `vendor/etc/init/rild.rc` | radio daemon; Wi-Fi only |
+| `ims`, `imssettings`, `embms`, `qcrilmsgtunnel`, `dpmserviceapp`, `atfwd` (`PRODUCT_PACKAGES`) | Wi-Fi calling, LTE broadcast, RIL/AT/data-port plumbing; Wi-Fi only |
+| `qti-logkit`, `access-qcom-logkit` (`PRODUCT_PACKAGES`) | Qualcomm engineering log tool, not on stock Oreo; NPE-crashes at boot without DIAG access |
+
+Shims these blobs need live in `device/libshims` (`libshim_camera`, `libshim_procname`).
