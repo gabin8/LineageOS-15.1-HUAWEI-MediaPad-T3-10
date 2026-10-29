@@ -1,6 +1,6 @@
 # LineageOS 15.1 for Huawei MediaPad T3 10 (AGS-W09 / "agassi")
 
-**Status: BOOTS END-TO-END to the LineageOS setup wizard / launcher.** system_server is stable,
+**Status: BOOTS END-TO-END to the LineageOS setup wizard / launcher, with working WiFi.** system_server is stable,
 SystemUI runs, the panel lights, HIDL/binder HALs register, storage mounts, and the LineageOS
 Setup Wizard is interactive (Welcome → Locale → …). As far as I know this is the first time this
 exact unit (Snapdragon T3, **not** the Kirin AGS2) has fully booted a from-source LineageOS.
@@ -28,12 +28,15 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 |---|---|
 | Kernel, SMP, memory, mounts (`/system` `/vendor` `/data` `/cache` via ramdisk `mount_all`) | ✅ |
 | Android init, properties, SELinux (permissive), HIDL/binder, HALs register | ✅ |
-| **Display panel** (BOE NT51017 9.6" 800p via lcdkit) + HWComposer/SurfaceFlinger | ✅ |
+| **Display panel** (BOE NT51017 9.6" 800p via lcdkit) + HWComposer/SurfaceFlinger, GPU composition (no flicker) | ✅ |
 | **Live adb in the main boot** (FunctionFS gadget) | ✅ |
 | **Full boot:** zygote → SystemUI → setup wizard / Trebuchet launcher | ✅ |
-| Touch, power/volume keys (keylayout) | ✅ |
+| Touch, power/volume keys (keylayout), no input stalls | ✅ |
+| Stock identity (AGS-W09 / HUAWEI, tablet, density 213) | ✅ |
 | Audio | ⚠️ silent **stub** — no ALSA card (ADSP/Q6 never inits; needs kernel work) |
-| WiFi | ❌ prima module disabled during build (TODO) |
+| **WiFi** (WCN3660B / pronto, prima built into the kernel): scan + connect, 2.4 + 5 GHz | ✅ |
+| WiFi hotspot | ❓ untested (builtin prima ignores `fwpath`; AP mode needs `con_mode`) |
+| Auto-rotate | ❌ no accelerometer exposed (natural orientation is portrait, as on stock) |
 | GPS / real IZAT location | ❌ gnss is a stub HAL; QC location stack disabled (incompatible libs) |
 | Cellular | n/a (Wi‑Fi-only SKU) |
 
@@ -106,6 +109,39 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     `make LineageSetupWizard` (NOT `mmm` — the Tests module fails proguard) and replace
     `/system/priv-app/LineageSetupWizard/LineageSetupWizard.apk`.
 
+### WiFi (`ramdisk/init.wifi.sh`, `ramdisk/init.qcom.rc`)
+17. **prima is built into the kernel** (`CONFIG_PRONTO_WLAN=y`, `CONFIG_HUAWEI_WIFI_BUILTIN=y`) — no
+    `wlan.ko`. The driver is started by writing `start` to `/proc/wifi_built_in/wifi_start`, and only
+    after the WCNSS (pronto) subsystem is up. Getting it up needs, **in this order, before the first
+    open of `/dev/wcnss_wlan`/`/dev/wcnss_ctrl`** (the kernel triggers the pronto PIL only once per boot
+    and `wcnss_ctrl` can only be opened once per boot — a premature attempt poisons the boot):
+    the `modem` partition mounted at `/firmware` (it holds `image/wcnss.mdt`+`.bNN`),
+    `firmware_class.path=/firmware/image`, `persist` mounted at `/persist` (factory cal), and the NV
+    under the name Huawei's `wcnss_service` derives from the hardware IDs
+    (`/data/misc/wifi/nvbin/msm8937_303_0x00_0x01_0x00_nv.bin` ← `WCNSS_hw_wlan_nv_ags_w09.bin`).
+    `init.wifi.sh` does exactly that as a `late_start` oneshot, then runs `wcnss_service` and kicks
+    the driver. (`/dev/block/bootdevice` doesn't exist on this build, so mounts use the platform by-name path.)
+18. **Framework side** — `/vendor/etc/init/hw/init.qcom.rc` is never parsed (vendor is mounted after
+    init reads its `.rc` files), so the ramdisk carries its `wpa_supplicant` service, the WiFi data dirs,
+    and `chown wifi wifi /sys/module/wlan/parameters/fwpath` (the WiFi HAL writes `sta` there; without
+    it: `Failed to change firmware mode` → `Failed to start HAL for client mode`).
+
+### Display, input, identity (`device/`, `vendor/apply-buildprop-fixes.sh`)
+19. **Flicker on touch** — the Huawei hwcomposer describes the GPU client target as RGBA8888-**UBWC**,
+    but MSM8917 (MDSS 1.15) has no UBWC, so every GPU-composed frame fails validation and is flushed as
+    a black frame. `debug.gralloc.gfx_ubwc_disable=1` (+ `video.disable.ubwc=1`, drop
+    `debug.gralloc.enable_fb_ubwc=1`).
+20. **~4 s UI/scroll freezes every ~10 s** — the Huawei `lights.msm8937.so` blob `usleep()`s inside
+    `setLight`. BatteryService updates the battery LED on every battery tick while holding its lock;
+    PowerManagerService waits on that while holding *its* lock; InputDispatcher's per-touch
+    `userActivity()` waits on PMS → touch input stalls. Replaced by CAF liblight built from source
+    (`device/liblight`; drop the blob per `device/vendor-blobs.md`).
+21. **Identity** — the tree is a Xiaomi rolex/riva clone: `libinit_msm8917` force-set
+    `ro.product.model=Redmi 5A` (+ the riva power profile) and the fingerprint was Xiaomi's. Now the
+    stock values from this unit's `product`/`version` partitions (AGS-W09, HUAWEI, HWAGS-Q, AGSEEA,
+    `tablet`); system/vendor/bootimage fingerprints must match or Android shows an "internal problem"
+    dialog. **Density 213** (stock) instead of 320, which made the 800 px panel a ~400 dp *phone*.
+
 ## Build & flash (outline)
 
 > Assumes the clienthax LineageOS 15.1 tree builds for you and you have the engineering bootloader.
@@ -131,13 +167,19 @@ adb push vendor/remove-qcom-diag-gid.sh vendor/disable-incompatible-qc-apps.sh /
 adb shell 'sh /data/local/tmp/remove-qcom-diag-gid.sh; sh /data/local/tmp/disable-incompatible-qc-apps.sh'
 #    (and: consumerir.default.so + android.hardware.gnss@1.0-service/-impl + the generic light service,
 #     all built from AOSP; see fixes 10 & 13.)
-# For a reproducible build, fold 11/12/13/14/15 into the vendor image + PRODUCT_PACKAGES and apply 16.
+adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/local/tmp/apply-buildprop-fixes.sh
+# For a reproducible build: apply device/device-tree.patch, add device/liblight to the device tree,
+# drop the lights blob (device/vendor-blobs.md), fold 11-15 into the vendor image, and apply 16.
 ```
 
 ## Remaining work (help wanted)
 - **Audio:** real sound needs the Q6/ADSP (LPASS) to initialize so an ALSA card registers — a kernel
   bring-up effort (currently `snd_soc_register_card -517`, no `/proc/asound/cards`).
-- **WiFi:** re-enable the prima WLAN module (disabled to get the ROM to build).
+- **Auto-rotate:** no accelerometer is exposed (no input/IIO device), so rotation can't follow the device.
+- **WiFi hotspot:** untested; `WCNSS_qcom_cfg_ags.ini` (the Huawei per-device variant) vs the generic
+  `WCNSS_qcom_cfg.ini` currently used is worth comparing.
+- **Audio follow-up:** `/firmware` + `firmware_class.path` now exist (late, for WCNSS only). Mounting
+  them early might let the ADSP boot too — a separate experiment.
 - Make all the on-device fixes part of the vendor/system image for a one-shot flash.
 
 ## Credits & license

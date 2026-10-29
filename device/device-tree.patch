@@ -1,0 +1,110 @@
+diff --git a/device.mk b/device.mk
+index 9d61cfe..e0580d5 100644
+--- a/device.mk
++++ b/device.mk
+@@ -26,3 +26,10 @@ include $(DEVICE_PATH)/product/*.mk
+ 
+ # Inherit proprietary files
+ $(call inherit-product-if-exists, vendor/huawei/ags_w09/ags_w09-vendor.mk)
++
++# Tablet
++PRODUCT_CHARACTERISTICS := tablet
++
++# Lights (CAF liblight, replaces the sleeping Huawei blob)
++PRODUCT_PACKAGES += \
++    lights.msm8937
+diff --git a/init/init_msm8917.cpp b/init/init_msm8917.cpp
+index 35659e6..967cfe8 100644
+--- a/init/init_msm8917.cpp
++++ b/init/init_msm8917.cpp
+@@ -110,22 +110,8 @@ static void init_alarm_boot_properties()
+ 
+ void check_device()
+ {
+-    std::ifstream fin;
+-    std::string buf;
+-
+-    fin.open("/proc/cmdline");
+-    while (std::getline(fin, buf, ' '))
+-        if (buf.find("board_id") != std::string::npos)
+-            break;
+-    fin.close();
+-
+-    if (buf.find("S88503") != std::string::npos) {
+-        model = "Redmi 4A";
+-    } else {
+-        model = "Redmi 5A";
+-	property_set("ro.power_profile.override", "/vendor/etc/power_profile_riva.xml");
+-    }
+-
++    // Huawei MediaPad T3 10 Wi-Fi (AGS-W09); the rolex/riva board_id probe does not apply
++    model = "AGS-W09";
+ }
+ 
+ 
+diff --git a/lineage.mk b/lineage.mk
+index f3f40fb..5f599fa 100644
+--- a/lineage.mk
++++ b/lineage.mk
+@@ -25,10 +25,10 @@ $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
+ # Inherit from huawei device
+ $(call inherit-product, device/huawei/ags_w09/device.mk)
+ 
+-PRODUCT_BRAND := Huawei
++PRODUCT_BRAND := HUAWEI
+ PRODUCT_DEVICE := ags_w09
+-PRODUCT_MANUFACTURER := Huawei
+-PRODUCT_MODEL := ags_w09
++PRODUCT_MANUFACTURER := HUAWEI
++PRODUCT_MODEL := AGS-W09
+ PRODUCT_NAME := lineage_ags_w09
+ 
+ PRODUCT_GMS_CLIENTID_BASE := android-ags-w09
+@@ -36,9 +36,9 @@ PRODUCT_GMS_CLIENTID_BASE := android-ags-w09
+ TARGET_VENDOR_PRODUCT_NAME := ags_w09
+ 
+ PRODUCT_BUILD_PROP_OVERRIDES += \
+-    TARGET_DEVICE="ags_w09" \
+-    PRODUCT_NAME="ags_w09" \
+-    PRIVATE_BUILD_DESC="ags_w09-user 7.1.2 N2G47H V9.2.6.0.NCCMIEK release-keys"
++    TARGET_DEVICE="HWAGS-Q" \
++    PRODUCT_NAME="AGSEEA" \
++    PRIVATE_BUILD_DESC="AGS-W09-user 8.0.0 HUAWEIAGS-W09 150(C431) release-keys"
+ 
+ # Set BUILD_FINGERPRINT variable to be picked up by both system and vendor build.prop
+-BUILD_FINGERPRINT := "Xiaomi/rolex/rolex:7.1.2/N2G47H/V9.2.6.0.NCCMIEK:user/release-keys"
++BUILD_FINGERPRINT := "HUAWEI/AGSEEA/HWAGS-Q:8.0.0/HUAWEIAGS-W09/150(C431):user/release-keys"
+diff --git a/product/display.mk b/product/display.mk
+index 4f07903..6fea0a8 100644
+--- a/product/display.mk
++++ b/product/display.mk
+@@ -6,8 +6,8 @@ TARGET_SCREEN_WIDTH := 720
+ # currently contain all of the bitmaps at xhdpi density so
+ # we do this little trick to fall back to the hdpi version
+ # if the xhdpi doesn't exist.
+-PRODUCT_AAPT_CONFIG := normal
+-PRODUCT_AAPT_PREF_CONFIG := xhdpi
++PRODUCT_AAPT_CONFIG := normal large
++PRODUCT_AAPT_PREF_CONFIG := hdpi
+ # A list of dpis to select prebuilt apk, in precedence order.
+ PRODUCT_AAPT_PREBUILT_DPI := hdpi
+ 
+@@ -50,7 +50,8 @@ PRODUCT_COPY_FILES += \
+ PRODUCT_PROPERTY_OVERRIDES += \
+     debug.egl.hw=1 \
+     debug.enable.sglscale=1 \
+-    debug.gralloc.enable_fb_ubwc=1 \
++    debug.gralloc.gfx_ubwc_disable=1 \
++    video.disable.ubwc=1 \
+     debug.mdpcomp.logs=0 \
+     debug.sf.hw=1 \
+     debug.sf.latch_unsignaled=1 \
+@@ -63,7 +64,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
+     persist.sys.wfd.virtual=0 \
+     ro.opengles.version=196610 \
+     ro.qualcomm.cabl=0 \
+-    ro.sf.lcd_density=320 \
++    ro.sf.lcd_density=213 \
+     sdm.debug.disable_rotator_split=1 \
+     sdm.debug.disable_skip_validate=1 \
+     sdm.perf_hint_window=50 \
