@@ -41,7 +41,7 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | **Audio**: real Qualcomm HAL — speaker playback + built-in mics (recording 16/44.1/48 kHz, mono/stereo) | ✅ |
 | Thermal mitigation (`thermal-engine`), `time_daemon` | ✅ |
 | Hardware video decoder (Venus/OMX) | ⚠️ initialises now (device permissions fixed); playback not verified |
-| Camera | 🔄 HAL loads, back + front enumerate (HAL3), no crashes; **preview not working yet** |
+| Camera | 🔄 HAL3 opens both cameras without crashes; **preview black / no photo** (VFE delivers almost no frames) |
 | Bluetooth | ❓ not brought up (`hciattach` from the vendor rc not ported) |
 | **WiFi** (WCN3660B / pronto, prima built into the kernel): scan + connect, 2.4 + 5 GHz | ✅ |
 | WiFi hotspot | ❓ untested (builtin prima ignores `fwpath`; AP mode needs `con_mode`) |
@@ -222,9 +222,16 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     provider service on **`/dev/binder`** (AOSP uses `/dev/vndbinder`, where SurfaceFlinger and the sensor
     service don't exist, so the HAL waited forever) → `device/camera-provider`; and **HAL3**
     (`persist.camera.HAL3.enabled=1`, as stock — the inherited `=0` puts it in HAL1 mode, where the HAL
-    passes a non-`CameraDevice` cookie to 8.1's `sGetMemory` and crashes). Both cameras enumerate; the
-    preview is still black. Known wart: the HAL looks up `display.qservice` (registered on vndbinder by
-    the composer) on every open/close and waits ~4 s for it.
+    passes a non-`CameraDevice` cookie to 8.1's `sGetMemory` and crashes; `libshim_camera` now refuses
+    the HAL1 open, so apps fall back to HAL3). The camera userspace is **stock 7.0** while gralloc and
+    the GPU blobs are **O** (gralloc1): the HAL reads `private_handle_t` size/offset at +28/+32, which
+    gralloc1 uses for width/height (a 640x480 buffer registered as "size 640") → `libshim_camera`
+    hands the HAL old-layout copies of each handle (`camera_gralloc_shim.cpp`). With that, HAL3
+    open/configure/requests/metadata work and nothing crashes, but **the VFE outputs almost no image
+    buffers** (`msm_vfe40_reset_hardware: reset timeout`, camif errors; ~0.5 fps back, 0 front) — a
+    kernel/ISP mismatch below the HAL. Stock Oreo's vendor has a complete matching camera stack
+    (HAL, daemon, libmmcamera2, chromatix) — the likely next step. Wart: the HAL looks up
+    `display.qservice` (vndbinder) on open/close and waits ~4 s for it.
 
 ## Build & flash (outline)
 
@@ -260,7 +267,7 @@ adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/
 ## Remaining work (help wanted)
 - **WiFi hotspot:** untested; `WCNSS_qcom_cfg_ags.ini` (the Huawei per-device variant) vs the generic
   `WCNSS_qcom_cfg.ini` currently used is worth comparing.
-- **Camera preview** (item 33): HAL loads and both cameras enumerate, preview still black.
+- **Camera preview** (item 33): try the stock Oreo camera stack, which matches this kernel and gralloc.
 - **Release-key signing**: the build uses AOSP test keys (Trust warns "signed with public keys").
 - **SELinux enforcing**: still permissive; needs policy for the added services and stock blobs.
 - **Bluetooth**, **GPS**: not brought up.
