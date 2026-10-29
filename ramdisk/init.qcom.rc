@@ -68,3 +68,44 @@ service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
     socket wpa_wlan0 dgram 660 wifi wifi
     disabled
     oneshot
+
+# ---------------------------------------------------------------------------------------
+# Sensors (accelerometer -> auto-rotate). The accel (mCube MC3xxx @0x4C) hangs off the
+# ADSP-owned BLSP I2C bus and is driven by the Qualcomm sensor core (SSC) inside the ADSP
+# firmware, so Linux never sees it. Needs: IPC-router security rules, the ADSP booted,
+# and the sensors.qcom registry daemon - all before the sensors HAL (class hal, on boot)
+# enumerates, because the QTI HAL only waits 5 s for the SMGR QMI service.
+# (/vendor/etc/init/hw/init.qcom.rc normally does this but is never imported here.)
+on fs
+    write /sys/module/firmware_class/parameters/path /firmware/image
+
+on post-fs-data
+    chmod 0775 /persist/sensors
+    chmod 0664 /persist/sensors/sensors_settings
+    chown system root /persist/sensors/sensors_settings
+    mkdir /data/misc/sensors 0775 system system
+
+on early-boot
+    # CONFIG_IPC_ROUTER_SECURITY: every QMI client send blocks until irsc_util has loaded
+    # /vendor/etc/sec_config (sensor services 256+ are then allowed for gid system)
+    start irsc_util
+    # subsys1 == adsp on this kernel/DT (cat /sys/bus/msm_subsys/devices/subsys1/name);
+    # default SYSTEM would panic the SoC on an ADSP crash
+    write /sys/bus/msm_subsys/devices/subsys1/restart_level related
+    # synchronous PIL load of /firmware/image/adsp.* (stock does this here too)
+    write /sys/kernel/boot_adsp/boot 1
+    start sensors
+
+service irsc_util /vendor/bin/irsc_util /vendor/etc/sec_config
+    class core
+    user root
+    disabled
+    oneshot
+
+# Drops to uid 'nobody' itself (LOS has no 'sensors' AID); supplementary groups survive
+# (it never calls setgroups), so 'system' keeps it inside the sec_config sensor rules.
+service sensors /vendor/bin/sensors.qcom
+    class core
+    user root
+    group root system wakelock
+    disabled
