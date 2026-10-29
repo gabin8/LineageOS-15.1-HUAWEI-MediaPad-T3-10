@@ -34,11 +34,15 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | Touch, power/volume keys (keylayout), no input stalls | ✅ |
 | Stock identity (AGS-W09 / HUAWEI, tablet, density 213) | ✅ |
 | Wi-Fi-only: no SIM icon (`ro.radio.noril`), no telephony features, on-screen navigation bar | ✅ |
-| Tablet UI wording ("About tablet"), no dialer/SMS apps | 🔄 in the rebuilt system image (not flashed yet) |
+| Tablet UI wording ("About tablet"), no dialer/SMS/SIM-toolkit apps (rebuilt system image) | ✅ |
 | Real factory WiFi MAC (from `oeminfo`) | ✅ |
 | Browser / WebView (Chromium 138) | ✅ |
 | Charging | ✅ (slow on a PC USB port; ~1 A cap on a wall charger) |
-| Audio | ⚠️ silent **stub** HAL — the ADSP now boots and the sound card registers; real HAL not re-enabled yet |
+| **Audio**: real Qualcomm HAL — speaker playback + built-in mics (recording 16/44.1/48 kHz, mono/stereo) | ✅ |
+| Thermal mitigation (`thermal-engine`), `time_daemon` | ✅ |
+| Hardware video decoder (Venus/OMX) | ⚠️ initialises now (device permissions fixed); playback not verified |
+| Camera | 🔄 HAL loads, back + front enumerate (HAL3), no crashes; **preview not working yet** |
+| Bluetooth | ❓ not brought up (`hciattach` from the vendor rc not ported) |
 | **WiFi** (WCN3660B / pronto, prima built into the kernel): scan + connect, 2.4 + 5 GHz | ✅ |
 | WiFi hotspot | ❓ untested (builtin prima ignores `fwpath`; AP mode needs `con_mode`) |
 | Accelerometer + auto-rotate (mCube MC3xxx via the ADSP sensor core) | ✅ |
@@ -94,12 +98,14 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     A7-era vendor libs (e.g. `libizat_core.so` needs the missing symbol `get_process_name`) and take down
     system_server (they run in the system process → lock-screen↔boot-animation loop). Disable
     com.qualcomm.location, CNEService, dpmserviceapp, colorservice, svi, cabl. (GNSS = stub HAL.)
-13. **`audio_policy_configuration.xml`** — output-only **stub** audio policy (module `primary`,
-    `AUDIO_DEVICE_OUT_STUB`, no input/r_submix) + disable `audio.primary.msm8937.so` so the stub
-    `audio.primary.default.so` loads. There is **no ALSA sound card** (ADSP down); the real HAL and even
-    an input stream crash audioserver. This gives silent audio so AudioService doesn't hang. (Also need
-    the built `consumerir.default.so` and the `gnss@1.0` service on `/vendor` so IConsumerIr/IGnss register
-    — system_server hard-blocks on them in this non-Treble build.)
+13. **`audio_policy_configuration.xml`** — stock Huawei policy minus the **FM tuner**, telephony devices
+    and the remote-submix module. With the real HAL (`audio.primary.msm8937.so`), AudioPolicyManager
+    test-opens every attached input at startup; for the FM tuner (and remote submix) the HAL returns a
+    garbage input buffer size, AudioFlinger's `RecordThread::readInputParameters_l` mallocs ~3.9 GB, gets
+    NULL and `memset`s it → audioserver crash-loop. The built-in mics work (verified with an AudioRecord
+    test at 16/44.1/48 kHz, mono and stereo). The real HAL needs the ADSP booted (item 24) so the
+    `msm8952-snd-card-mtp` card exists. (Also needed: the built `consumerir.default.so` and the `gnss@1.0`
+    service on `/vendor` so IConsumerIr/IGnss register — system_server hard-blocks on them here.)
 14. **`gpio-keys.kl`** → `/vendor/usr/keylayout/` — the power key (code 116) falls back to `Generic.kl`
     with no `WAKE` flag, so the button can't wake from doze. This adds `key 116 POWER WAKE`.
 15. **`ro.sys.sdcardfs=false`** (in `/vendor/build.prop`) — the kernel's sdcardfs 2.1.3 rejects the 8.1
@@ -191,6 +197,35 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     `external/chromium-webview/prebuilt/arm64/webview.apk`. It is a dev snapshot (Chromium debug signature,
     accepted because the build is userdebug; no auto-updates).
 
+### Init, permissions and stock daemons (`ramdisk/`)
+27. **bootstat crash** — stock vendor ships an **8.0** `bootstat.rc` that runs after the system's 8.1 one
+    and resets `/data/misc/bootstat` to `root:root`; 8.1 bootstat (user `system`) then can't open it and
+    aborts. Don't install the vendor copy (and stale `vendor/bin/bootstat`).
+28. **init parses every file in `/vendor/etc/init`**, not only `*.rc` — renaming a file to `.rc.disabled`
+    does *not* disable it. Move unwanted rc files out of the directory (e.g. `/vendor/etc/init-disabled/`).
+    Also dropped there: `rild.rc` (Wi-Fi only).
+29. **Vendor ueventd rules never applied** — ueventd reads `/vendor/ueventd.rc` before `/vendor` is
+    mounted, so `/dev/video*`, `/dev/media*`, `/dev/v4l-subdev*`… stayed `root 0600` (hardware video
+    decoder `EACCES`, camera unusable). The ramdisk carries them as `ueventd.qcom.rc`.
+30. **Stock daemons from the never-imported vendor rc** — `thermal-engine` (otherwise nothing throttles
+    the SoC), `time_daemon`, `qcamerasvr` (camera daemon) are defined in the ramdisk `init.qcom.rc`.
+    Modem daemons (rild, netmgrd, qti, cnd, ims*, rmt_storage, tftp_server) are intentionally left out.
+31. **debugfs** isn't mounted → system_server WTF "neither /proc/wakelocks nor /d/wakeup_sources exists";
+    mounted at early-init.
+32. **Vendor apps that don't belong on a Wi-Fi tablet / don't work here** — Qualcomm Logkit (engineering
+    log tool; not on stock Oreo; NPE-crashes at boot without DIAG), Wi-Fi calling (ims, imssettings), LTE
+    broadcast (embms), RIL tunnel, AT forwarding, data port mapper: disabled on device
+    (`vendor/disable-incompatible-qc-apps.sh`) and removed from the vendor `PRODUCT_PACKAGES`.
+33. **Camera (in progress)** — the Huawei HAL (`camera.msm8937.so`, Nougat-era) needed:
+    a shim for the pre-8.1 `DisplayEventReceiver()` ctor and Huawei's `isLogEnabled()` plus a preloaded
+    `libsensor.so` (SensorManager moved out of libgui in O) → `device/libshims`; a device copy of the
+    provider service on **`/dev/binder`** (AOSP uses `/dev/vndbinder`, where SurfaceFlinger and the sensor
+    service don't exist, so the HAL waited forever) → `device/camera-provider`; and **HAL3**
+    (`persist.camera.HAL3.enabled=1`, as stock — the inherited `=0` puts it in HAL1 mode, where the HAL
+    passes a non-`CameraDevice` cookie to 8.1's `sGetMemory` and crashes). Both cameras enumerate; the
+    preview is still black. Known wart: the HAL looks up `display.qservice` (registered on vndbinder by
+    the composer) on every open/close and waits ~4 s for it.
+
 ## Build & flash (outline)
 
 > Assumes the clienthax LineageOS 15.1 tree builds for you and you have the engineering bootloader.
@@ -210,28 +245,25 @@ fastboot boot boot.img                          # RAM-boot (the ONLY path that w
 adb shell 'mount -o rw,remount /vendor'
 adb push vendor/gpio-keys.kl /vendor/usr/keylayout/gpio-keys.kl
 adb push vendor/audio_policy_configuration.xml /vendor/etc/audio_policy_configuration.xml
-adb shell 'mv /vendor/lib64/hw/audio.primary.msm8937.so /vendor/lib64/hw/audio.primary.msm8937.so.nocard; \
-           mv /vendor/lib/hw/audio.primary.msm8937.so   /vendor/lib/hw/audio.primary.msm8937.so.nocard'
 adb push vendor/remove-qcom-diag-gid.sh vendor/disable-incompatible-qc-apps.sh /data/local/tmp/
 adb shell 'sh /data/local/tmp/remove-qcom-diag-gid.sh; sh /data/local/tmp/disable-incompatible-qc-apps.sh'
 #    (and: consumerir.default.so + android.hardware.gnss@1.0-service/-impl + the generic light service,
 #     all built from AOSP; see fixes 10 & 13.)
 adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/local/tmp/apply-buildprop-fixes.sh
-#    sensors: build vendor/sensors/shim_procname.c (build.sh) → /vendor/lib64/libshim_procname.so and
-#    replace /vendor/etc/init/android.hardware.sensors@1.0-service.rc with vendor/sensors/'s copy.
+#    shims (device/libshims, built with the tree) → /vendor/lib{,64}; replace
+#    /vendor/etc/init/android.hardware.sensors@1.0-service.rc with vendor/sensors/'s copy; install the
+#    device camera provider (device/camera-provider) and move unwanted rc files to /vendor/etc/init-disabled.
 # For a reproducible build: apply device/device-tree.patch, add device/liblight and device/configs to the device tree,
 # drop the lights blob (device/vendor-blobs.md), fold 11-15 into the vendor image, and apply 16.
 ```
 
 ## Remaining work (help wanted)
-- **Audio:** real sound needs the Q6/ADSP (LPASS) to initialize so an ALSA card registers — a kernel
-  bring-up effort (currently `snd_soc_register_card -517`, no `/proc/asound/cards`).
 - **WiFi hotspot:** untested; `WCNSS_qcom_cfg_ags.ini` (the Huawei per-device variant) vs the generic
   `WCNSS_qcom_cfg.ini` currently used is worth comparing.
-- **Audio:** the ADSP boots and the sound card registers now; re-enable the real audio HAL/policy
-  (`audio.primary.msm8937.so`, currently renamed `.nocard`) and test.
-- **Camera:** `cameraserver` reports the camera service unavailable.
-- Fold the sensors shim into the device tree (vendor module + `TARGET_LD_SHIM_LIBS` or the rc `setenv`).
+- **Camera preview** (item 33): HAL loads and both cameras enumerate, preview still black.
+- **Release-key signing**: the build uses AOSP test keys (Trust warns "signed with public keys").
+- **SELinux enforcing**: still permissive; needs policy for the added services and stock blobs.
+- **Bluetooth**, **GPS**: not brought up.
 - Make all the on-device fixes part of the vendor/system image for a one-shot flash.
 
 ## Credits & license

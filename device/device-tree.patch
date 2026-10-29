@@ -1,8 +1,17 @@
+diff --git a/Android.bp b/Android.bp
+index f61e31b..94a6dbd 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -1,3 +1,4 @@
+ subdirs = [
++    "camera/provider",
+     "light",
+ ]
 diff --git a/device.mk b/device.mk
-index 9d61cfe..a090819 100644
+index 9d61cfe..2123205 100644
 --- a/device.mk
 +++ b/device.mk
-@@ -26,3 +26,26 @@ include $(DEVICE_PATH)/product/*.mk
+@@ -26,3 +26,30 @@ include $(DEVICE_PATH)/product/*.mk
  
  # Inherit proprietary files
  $(call inherit-product-if-exists, vendor/huawei/ags_w09/ags_w09-vendor.mk)
@@ -29,6 +38,10 @@ index 9d61cfe..a090819 100644
 +# logd.klogd spins at 100% CPU on this 3.18 kernel; kernel log stays available via dmesg
 +PRODUCT_PROPERTY_OVERRIDES += \
 +    ro.logd.kernel=false
++
++# Shims for Huawei vendor blobs (sensors HAL: libizat_core needs get_process_name)
++PRODUCT_PACKAGES += \
++    libshim_procname
 diff --git a/init/init_msm8917.cpp b/init/init_msm8917.cpp
 index 35659e6..967cfe8 100644
 --- a/init/init_msm8917.cpp
@@ -128,6 +141,29 @@ index 9d62e79..a32d366 100644
 +    <bool name="config_showNavigationBar">true</bool>
 +
  </resources>
+diff --git a/product/camera.mk b/product/camera.mk
+index 308e057..eb7cc4c 100644
+--- a/product/camera.mk
++++ b/product/camera.mk
+@@ -15,7 +15,8 @@ PRODUCT_PACKAGES += \
+     camera.device@1.0-impl \
+     camera.device@3.2-impl \
+     android.hardware.camera.provider@2.4-impl \
+-    android.hardware.camera.provider@2.4-service \
++    android.hardware.camera.provider@2.4-service.ags_w09 \
++    libshim_camera \
+     vendor.qti.hardware.camera.device@1.0 \
+     vendor.qti.hardware.camera.device@1.0_vendor
+ 
+@@ -30,6 +31,6 @@ PRODUCT_PROPERTY_OVERRIDES += \
+     camera.hal1.packagelist=com.skype.raider,com.google.android.talk \
+     media.camera.ts.monotonic=1 \
+     persist.camera.gyro.android=1 \
+-    persist.camera.HAL3.enabled=0 \
++    persist.camera.HAL3.enabled=1 \
+     persist.camera.is_type=1 \
+     vidc.enc.narrow.searchrange=1
+\ No newline at end of file
 diff --git a/product/display.mk b/product/display.mk
 index 4f07903..6fea0a8 100644
 --- a/product/display.mk

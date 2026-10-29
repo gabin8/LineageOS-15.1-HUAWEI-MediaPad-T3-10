@@ -1,0 +1,10 @@
+service camera-provider-2-4 /vendor/bin/hw/android.hardware.camera.provider@2.4-service.ags_w09
+    class hal
+    user cameraserver
+    group audio camera input drmrpc
+    ioprio rt 4
+    capabilities SYS_NICE
+    writepid /dev/cpuset/camera-daemon/tasks /dev/stune/top-app/tasks
+    # Huawei camera.msm8937.so needs pre-8.1 symbols (libshim_camera) and the
+    # SensorManager symbols that moved from libgui to libsensor in Oreo.
+    setenv LD_PRELOAD /vendor/lib/libshim_camera.so:/system/lib/libsensor.so

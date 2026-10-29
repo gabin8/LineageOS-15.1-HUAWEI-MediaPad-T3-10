@@ -109,3 +109,37 @@ service sensors /vendor/bin/sensors.qcom
     user root
     group root system wakelock
     disabled
+
+# ---------------------------------------------------------------------------------------
+# Stock services from /vendor/etc/init/hw/init.{qcom,target}.rc, which is never imported
+# here (/init.rc imports it before /vendor is mounted). Only the ones a Wi-Fi tablet needs.
+on post-fs-data
+    # Create folder for mm-qcamera-daemon
+    mkdir /data/misc/camera 0770 camera camera
+    # Create /data/time folder for time-services
+    mkdir /data/time/ 0700 system system
+
+# Thermal mitigation (without it nothing throttles the SoC when it heats up)
+service thermal-engine /vendor/bin/thermal-engine -c ${sys.qcom.thermalcfg:-/vendor/etc/thermal-engine.conf}
+    class main
+    user root
+    socket thermal-send-client stream 0666 system system
+    socket thermal-recv-client stream 0660 system system
+    socket thermal-recv-passive-client stream 0666 system system
+    socket thermal-send-rule stream 0660 system system
+    group root
+
+service time_daemon /vendor/bin/time_daemon
+    class main
+    user root
+    group root
+
+service qcamerasvr /vendor/bin/mm-qcamera-daemon
+    class late_start
+    user camera
+    group camera system inet input graphics
+
+on early-init
+    # system_server's wakelock stats read /d/wakeup_sources (3.18 has no /proc/wakelocks);
+    # without debugfs it logs a WTF ("neither /proc/wakelocks nor /d/wakeup_sources exists")
+    mount debugfs debugfs /sys/kernel/debug mode=0755
