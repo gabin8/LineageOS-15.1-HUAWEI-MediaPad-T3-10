@@ -1,8 +1,8 @@
 diff --git a/device.mk b/device.mk
-index 9d61cfe..e0580d5 100644
+index 9d61cfe..a090819 100644
 --- a/device.mk
 +++ b/device.mk
-@@ -26,3 +26,10 @@ include $(DEVICE_PATH)/product/*.mk
+@@ -26,3 +26,26 @@ include $(DEVICE_PATH)/product/*.mk
  
  # Inherit proprietary files
  $(call inherit-product-if-exists, vendor/huawei/ags_w09/ags_w09-vendor.mk)
@@ -13,6 +13,22 @@ index 9d61cfe..e0580d5 100644
 +# Lights (CAF liblight, replaces the sleeping Huawei blob)
 +PRODUCT_PACKAGES += \
 +    lights.msm8937
++
++# Wi-Fi only (stock sets ro.radio.noril=true; no dialer/SMS apps on stock)
++PRODUCT_PROPERTY_OVERRIDES += \
++    ro.radio.noril=true
++
++# TeleService binds to it; stock ships it
++PRODUCT_PACKAGES += \
++    CarrierConfig
++
++# Huawei wcnss_service copies its WCNSS cfg from /system/etc/wifi (stock EMUI file)
++PRODUCT_COPY_FILES += \
++    $(DEVICE_PATH)/configs/wifi/WCNSS_qcom_cfg_huawei.ini:$(TARGET_COPY_OUT_SYSTEM)/etc/wifi/WCNSS_qcom_cfg.ini
++
++# logd.klogd spins at 100% CPU on this 3.18 kernel; kernel log stays available via dmesg
++PRODUCT_PROPERTY_OVERRIDES += \
++    ro.logd.kernel=false
 diff --git a/init/init_msm8917.cpp b/init/init_msm8917.cpp
 index 35659e6..967cfe8 100644
 --- a/init/init_msm8917.cpp
@@ -43,10 +59,20 @@ index 35659e6..967cfe8 100644
  
  
 diff --git a/lineage.mk b/lineage.mk
-index f3f40fb..5f599fa 100644
+index f3f40fb..b4120fb 100644
 --- a/lineage.mk
 +++ b/lineage.mk
-@@ -25,10 +25,10 @@ $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
+@@ -17,18 +17,18 @@
+ 
+ # Inherit from those products. Most specific first.
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
+-$(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
++$(call inherit-product, $(SRC_TARGET_DIR)/product/full_base.mk)
+ 
+ # Inherit some common Lineage stuff
+-$(call inherit-product, vendor/lineage/config/common_full_phone.mk)
++$(call inherit-product, vendor/lineage/config/common_full_tablet_wifionly.mk)
+ 
  # Inherit from huawei device
  $(call inherit-product, device/huawei/ags_w09/device.mk)
  
@@ -74,6 +100,34 @@ index f3f40fb..5f599fa 100644
  # Set BUILD_FINGERPRINT variable to be picked up by both system and vendor build.prop
 -BUILD_FINGERPRINT := "Xiaomi/rolex/rolex:7.1.2/N2G47H/V9.2.6.0.NCCMIEK:user/release-keys"
 +BUILD_FINGERPRINT := "HUAWEI/AGSEEA/HWAGS-Q:8.0.0/HUAWEIAGS-W09/150(C431):user/release-keys"
+diff --git a/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml b/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
+index b68f62a..6ccbd3f 100644
+--- a/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
++++ b/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
+@@ -33,7 +33,7 @@
+             64 - Volume rocker
+          For example, a device with Home, Back and Menu keys would set this
+          config to 7. -->
+-    <integer name="config_deviceHardwareKeys">83</integer>
++    <integer name="config_deviceHardwareKeys">64</integer>
+ 
+     <!-- Hardware keys present on the device with the ability to wake, stored as a bit field.
+          This integer should equal the sum of the corresponding value for each
+diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
+index 9d62e79..a32d366 100644
+--- a/overlay/frameworks/base/core/res/res/values/config.xml
++++ b/overlay/frameworks/base/core/res/res/values/config.xml
+@@ -333,4 +333,10 @@
+ 
+     <!-- Whether device supports double tap to wake -->
+     <bool name="config_supportDoubleTapWake">true</bool>
++
++    <!-- Wi-Fi only tablet: no voice calls or SMS; no hardware navigation keys -->
++    <bool name="config_voice_capable">false</bool>
++    <bool name="config_sms_capable">false</bool>
++    <bool name="config_showNavigationBar">true</bool>
++
+ </resources>
 diff --git a/product/display.mk b/product/display.mk
 index 4f07903..6fea0a8 100644
 --- a/product/display.mk
@@ -108,3 +162,16 @@ index 4f07903..6fea0a8 100644
      sdm.debug.disable_rotator_split=1 \
      sdm.debug.disable_skip_validate=1 \
      sdm.perf_hint_window=50 \
+diff --git a/product/radio.mk b/product/radio.mk
+index f587f99..3bb2fe8 100644
+--- a/product/radio.mk
++++ b/product/radio.mk
+@@ -4,8 +4,6 @@ PRODUCT_COPY_FILES += \
+ 
+ # Permissions
+ PRODUCT_COPY_FILES += \
+-    frameworks/native/data/etc/android.hardware.telephony.gsm.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.telephony.gsm.xml \
+-    frameworks/native/data/etc/android.hardware.telephony.cdma.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.telephony.cdma.xml \
+     frameworks/native/data/etc/android.software.sip.voip.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.sip.voip.xml
+ 
+ PRODUCT_PACKAGES += \

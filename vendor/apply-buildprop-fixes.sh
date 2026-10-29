@@ -23,4 +23,11 @@ sed -i -e "s|^ro.vendor.build.fingerprint=.*|ro.vendor.build.fingerprint=$FP|" \
 sed -i 's/^debug.gralloc.enable_fb_ubwc=1/debug.gralloc.enable_fb_ubwc=0/' /vendor/build.prop
 grep -q "^debug.gralloc.gfx_ubwc_disable=" /vendor/build.prop || echo "debug.gralloc.gfx_ubwc_disable=1" >> /vendor/build.prop
 grep -q "^video.disable.ubwc=" /vendor/build.prop || echo "video.disable.ubwc=1" >> /vendor/build.prop
+# Wi-Fi only (stock): no RIL, no telephony hardware features
+grep -q "^ro.radio.noril=" /vendor/build.prop || echo "ro.radio.noril=true" >> /vendor/build.prop
+for f in android.hardware.telephony.gsm.xml android.hardware.telephony.cdma.xml; do
+    [ -f /vendor/etc/permissions/$f ] && mv /vendor/etc/permissions/$f /vendor/etc/permissions/$f.disabled
+done
+# logd.klogd spins at 100% CPU on this kernel (it ate the whole USB charging budget); dmesg still works
+setprop persist.logd.kernel false
 sync

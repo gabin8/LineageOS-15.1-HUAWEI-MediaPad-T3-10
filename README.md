@@ -33,12 +33,16 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | **Full boot:** zygote → SystemUI → setup wizard / Trebuchet launcher | ✅ |
 | Touch, power/volume keys (keylayout), no input stalls | ✅ |
 | Stock identity (AGS-W09 / HUAWEI, tablet, density 213) | ✅ |
-| Audio | ⚠️ silent **stub** — no ALSA card (ADSP/Q6 never inits; needs kernel work) |
+| Wi-Fi-only: no SIM icon (`ro.radio.noril`), no telephony features, on-screen navigation bar | ✅ |
+| Tablet UI wording ("About tablet"), no dialer/SMS apps | 🔄 in the rebuilt system image (not flashed yet) |
+| Real factory WiFi MAC (from `oeminfo`) | ✅ |
+| Browser / WebView (Chromium 138) | ✅ |
+| Charging | ✅ (slow on a PC USB port; ~1 A cap on a wall charger) |
+| Audio | ⚠️ silent **stub** HAL — the ADSP now boots and the sound card registers; real HAL not re-enabled yet |
 | **WiFi** (WCN3660B / pronto, prima built into the kernel): scan + connect, 2.4 + 5 GHz | ✅ |
 | WiFi hotspot | ❓ untested (builtin prima ignores `fwpath`; AP mode needs `con_mode`) |
-| Auto-rotate | ❌ no accelerometer exposed (natural orientation is portrait, as on stock) |
+| Accelerometer + auto-rotate (mCube MC3xxx via the ADSP sensor core) | ✅ |
 | GPS / real IZAT location | ❌ gnss is a stub HAL; QC location stack disabled (incompatible libs) |
-| Cellular | n/a (Wi‑Fi-only SKU) |
 
 ## The fix chain (what it took to boot)
 
@@ -119,10 +123,11 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     `firmware_class.path=/firmware/image`, `persist` mounted at `/persist` (factory cal), and the NV
     under the name Huawei's `wcnss_service` derives from the hardware IDs
     (`/data/misc/wifi/nvbin/msm8937_303_0x00_0x01_0x00_nv.bin` ← `WCNSS_hw_wlan_nv_ags_w09.bin`).
-    `init.wifi.sh` does exactly that as a `late_start` oneshot, then runs `wcnss_service` and kicks
+    `/firmware` and `/persist` now come from `fstab.qcom` (item 24 needs them at early-boot);
+    `init.wifi.sh` keeps fallback mounts and does the rest as a `late_start` oneshot, then runs `wcnss_service` and kicks
     the driver. (`/dev/block/bootdevice` doesn't exist on this build, so mounts use the platform by-name path.)
-18. **Framework side** — `/vendor/etc/init/hw/init.qcom.rc` is never parsed (vendor is mounted after
-    init reads its `.rc` files), so the ramdisk carries its `wpa_supplicant` service, the WiFi data dirs,
+18. **Framework side** — `/vendor/etc/init/hw/init.qcom.rc` is never imported (`/init.rc` imports it
+    before `/vendor` is mounted; top-level `/vendor/etc/init/*.rc` are still parsed later), so the ramdisk carries its `wpa_supplicant` service, the WiFi data dirs,
     and `chown wifi wifi /sys/module/wlan/parameters/fwpath` (the WiFi HAL writes `sta` there; without
     it: `Failed to change firmware mode` → `Failed to start HAL for client mode`).
 
@@ -141,6 +146,50 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     stock values from this unit's `product`/`version` partitions (AGS-W09, HUAWEI, HWAGS-Q, AGSEEA,
     `tablet`); system/vendor/bootimage fingerprints must match or Android shows an "internal problem"
     dialog. **Density 213** (stock) instead of 320, which made the 800 px panel a ~400 dp *phone*.
+
+### Wi-Fi-only tablet product (`device/device-tree.patch`)
+22. The clienthax tree is a Redmi 4A/5A (phone) clone, so the build was a **phone**:
+    - `lineage.mk` inherited `full_base_telephony.mk` + LineageOS `common_full_phone.mk` (Dialer,
+      Messaging, SIM Toolkit, Cell Broadcast, Emergency Info, CallLogBackup, rild). Now `full_base.mk` +
+      `common_full_tablet_wifionly.mk`; `TeleService`/`Telecom` (core) and `CarrierConfig` stay, as on stock.
+    - Phone-vs-tablet **UI wording** ("About phone", "Phone storage", …) is chosen by aapt at build time
+      from `PRODUCT_CHARACTERISTICS`; `ro.build.characteristics` alone can't change it. Now `tablet`.
+    - `ro.radio.noril=true` (stock value) drops the mobile network type, which hides the SIM/signal
+      icons; `config_voice_capable`/`config_sms_capable` = false; the GSM/CDMA hardware-feature XMLs
+      are no longer installed.
+    - **No navigation bar**: the overlay declared Redmi capacitive keys (`config_deviceHardwareKeys=83`,
+      home+back+recents+volume) and never set `config_showNavigationBar`. Now volume-only (`64`) and
+      `config_showNavigationBar=true`.
+
+### More hardware and system fixes
+23. **Real WiFi MAC** (`ramdisk/init.wifi_mac.sh`) — without it prima autogenerates
+    `00:0a:f5` + the SoC serial (a "new device" for every router). Stock reads oeminfo record **id 0x34**,
+    an RSA-2048-signed blob (Huawei public key in `lib_hw_wifi_chipset_qcom.so`; the MAC is plaintext
+    bytes 5..0, byte-reversed), and writes `XX:XX:XX:XX:XX:XX` to `/proc/wifi_built_in/mac_addr_hw`
+    right before `start`. The helper does the same from the partition at boot (RSA in plain `awk`,
+    ~40 s once, then cached by the record's sha256 in `/data/misc/wifi/oeminfo_wifimac`). No MAC is
+    stored in this repo. Note: this build's `/system/bin/awk` is broken (`substr`, `return`, unary
+    minus, `!`), so the helper avoids them.
+24. **Accelerometer / auto-rotate** — the mCube MC3xxx (I²C 0x4C) hangs off the **ADSP-owned** BLSP bus
+    and is driven by the Qualcomm sensor core in the ADSP firmware, so Linux never sees it. Needed, all
+    before the sensors HAL enumerates (it waits only 5 s for the SMGR service): `irsc_util` loading
+    `/vendor/etc/sec_config` (with `CONFIG_IPC_ROUTER_SECURITY` every QMI send blocks until then), the ADSP
+    booted (`echo 1 > /sys/kernel/boot_adsp/boot`, restart level `related`), and the `sensors.qcom`
+    registry daemon — see `ramdisk/init.qcom.rc`. The HAL (`sensors.ssc.so` → `liblocationservice.so`
+    → Huawei `libizat_core.so`) imports `get_process_name()`, which 8.1 libcutils dropped → a two-function
+    shim preloaded into the HAL service (`vendor/sensors/`). Side effect: with the ADSP up, the
+    `msm8952-snd-card-mtp` sound card registers too (prerequisite for real audio).
+25. **logd at 100% CPU** — `logd.klogd` loops on `/dev/kmsg` on this 3.18 kernel. That one core ate the
+    whole USB charging budget (the battery *discharged* ~20-75 mA while showing "Charging"; now
+    charges). `persist.logd.kernel=false` / `ro.logd.kernel=false`; the kernel log stays in `dmesg`.
+26. **No WebView → browser crash** — LineageOS purged the lineage-15.1 WebView LFS objects; the blob that
+    could still be fetched is WebView 156 (`minSdk 29`), which PackageManager rejects on 8.1, so nothing
+    provides a WebView. Use Chromium's own **SystemWebView 138.0.7204.0** (the last generation that supports
+    Android 8, `minSdk 26`, arm64 + armeabi-v7a) from Google's `chromium-browser-snapshots` bucket,
+    `Android_Arm64/1465695/chrome-android.zip` → `apks/SystemWebView.apk`
+    (sha256 `2b19607ebb1a029408990dd6dcfe221e1eb17fb78756016345f3023cbe777b18`), as
+    `external/chromium-webview/prebuilt/arm64/webview.apk`. It is a dev snapshot (Chromium debug signature,
+    accepted because the build is userdebug; no auto-updates).
 
 ## Build & flash (outline)
 
@@ -168,18 +217,21 @@ adb shell 'sh /data/local/tmp/remove-qcom-diag-gid.sh; sh /data/local/tmp/disabl
 #    (and: consumerir.default.so + android.hardware.gnss@1.0-service/-impl + the generic light service,
 #     all built from AOSP; see fixes 10 & 13.)
 adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/local/tmp/apply-buildprop-fixes.sh
-# For a reproducible build: apply device/device-tree.patch, add device/liblight to the device tree,
+#    sensors: build vendor/sensors/shim_procname.c (build.sh) → /vendor/lib64/libshim_procname.so and
+#    replace /vendor/etc/init/android.hardware.sensors@1.0-service.rc with vendor/sensors/'s copy.
+# For a reproducible build: apply device/device-tree.patch, add device/liblight and device/configs to the device tree,
 # drop the lights blob (device/vendor-blobs.md), fold 11-15 into the vendor image, and apply 16.
 ```
 
 ## Remaining work (help wanted)
 - **Audio:** real sound needs the Q6/ADSP (LPASS) to initialize so an ALSA card registers — a kernel
   bring-up effort (currently `snd_soc_register_card -517`, no `/proc/asound/cards`).
-- **Auto-rotate:** no accelerometer is exposed (no input/IIO device), so rotation can't follow the device.
 - **WiFi hotspot:** untested; `WCNSS_qcom_cfg_ags.ini` (the Huawei per-device variant) vs the generic
   `WCNSS_qcom_cfg.ini` currently used is worth comparing.
-- **Audio follow-up:** `/firmware` + `firmware_class.path` now exist (late, for WCNSS only). Mounting
-  them early might let the ADSP boot too — a separate experiment.
+- **Audio:** the ADSP boots and the sound card registers now; re-enable the real audio HAL/policy
+  (`audio.primary.msm8937.so`, currently renamed `.nocard`) and test.
+- **Camera:** `cameraserver` reports the camera service unavailable.
+- Fold the sensors shim into the device tree (vendor module + `TARGET_LD_SHIM_LIBS` or the rc `setenv`).
 - Make all the on-device fixes part of the vendor/system image for a one-shot flash.
 
 ## Credits & license
