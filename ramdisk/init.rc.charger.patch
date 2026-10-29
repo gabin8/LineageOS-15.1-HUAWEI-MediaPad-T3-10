@@ -1,0 +1,16 @@
+# In the LineageOS boot ramdisk /init.rc, the charger action normally is:
+#
+#   on charger
+#       class_start charger
+#
+# On this unit the (engineering) bootloader passes androidboot.mode=charger when
+# powered over USB, so stock LOS init runs ONLY the charger UI and never boots.
+# Replace the body so a USB-powered boot proceeds to a full boot instead:
+
+on charger
+    setprop sys.boot_from_charger_mode 1
+
+# This trips LineageOS's own escape hatch:
+#   on property:sys.boot_from_charger_mode=1
+#       class_stop charger
+#       trigger late-init

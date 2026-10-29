@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<audioPolicyConfiguration version="1.0" xmlns:xi="http://www.w3.org/2001/XInclude">
+    <modules>
+        <module name="primary" halVersion="2.0">
+            <attachedDevices>
+                <item>Default Out</item>
+            </attachedDevices>
+            <defaultOutputDevice>Default Out</defaultOutputDevice>
+            <mixPorts>
+                <mixPort name="primary output" role="source" flags="AUDIO_OUTPUT_FLAG_PRIMARY">
+                    <profile name="" format="AUDIO_FORMAT_PCM_16_BIT"
+                             samplingRates="48000" channelMasks="AUDIO_CHANNEL_OUT_STEREO"/>
+                </mixPort>
+            </mixPorts>
+            <devicePorts>
+                <devicePort tagName="Default Out" type="AUDIO_DEVICE_OUT_STUB" role="sink"/>
+            </devicePorts>
+            <routes>
+                <route type="mix" sink="Default Out" sources="primary output"/>
+            </routes>
+        </module>
+    </modules>
+    <xi:include href="/vendor/etc/audio_policy_volumes.xml"/>
+    <xi:include href="/vendor/etc/default_volume_tables.xml"/>
+</audioPolicyConfiguration>

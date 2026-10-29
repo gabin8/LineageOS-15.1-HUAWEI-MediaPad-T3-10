@@ -1,0 +1,21 @@
+dcheckroot kernel panic fix (fs/proc/dcheck_root.c)
+===================================================
+The Huawei downstream kernel has a late_initcall `dcheckroot_init` that calls
+get_ro_secure(), which does:
+
+    filp = filp_open("/default.prop", O_RDONLY, 0644);
+    if (NULL == filp) { ... }          // BUG: filp_open returns an ERR_PTR, never NULL
+    ... filp->f_inode->i_size ...      // dereferences the error pointer -> translation fault -> panic
+
+In the LineageOS ramdisk, /default.prop is a SYMLINK -> system/etc/prop.default, which
+is dangling at late_initcall time (before /system is mounted). filp_open therefore
+returns -ENOENT (as a pointer), the broken NULL check misses it, and the kernel panics
+(black screen after the Tux logo, then a watchdog reboot).
+
+FIX (no kernel rebuild required): in the boot ramdisk, replace the /default.prop SYMLINK
+with a REAL file (a copy of /system/etc/prop.default is ideal; set ro.secure=0 so the
+Huawei root-check logic stays passive). Android still loads /system/etc/prop.default
+directly after mount, so the ramdisk file's content does not affect userspace.
+
+Alternatively, fix the kernel: change `if (NULL == filp)` to `if (IS_ERR_OR_NULL(filp))`
+in get_ro_secure() (and the same pattern in security/hw_root_scan/).

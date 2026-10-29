@@ -1,0 +1,34 @@
+on early-init
+    write /proc/sys/kernel/print-fatal-signals 1
+on fs
+    mount_all /fstab.qcom
+    # FunctionFS backing for adb: this kernel's android_usb adb function is ffs-backed;
+    # without a mounted functionfs the adb descriptor is empty -> host "error -32". (mirrors recovery)
+    write /sys/class/android_usb/android0/f_ffs/aliases adb
+    mkdir /dev/usb-ffs 0770 shell shell
+    mkdir /dev/usb-ffs/adb 0770 shell shell
+    mount functionfs adb /dev/usb-ffs/adb uid=2000,gid=2000
+    # Device has 4 cores (0-3). init.rc copies the (initially empty) root cpuset into the
+    # child cpusets, leaving cpus="" -> system_server setThreadGroupAndCpuset() throws and
+    # crash-loops (DisplayManagerService). Populate them explicitly.
+    write /dev/cpuset/foreground/cpus 0-3
+    write /dev/cpuset/foreground/mems 0
+    write /dev/cpuset/background/cpus 0-3
+    write /dev/cpuset/background/mems 0
+    write /dev/cpuset/system-background/cpus 0-3
+    write /dev/cpuset/system-background/mems 0
+    write /dev/cpuset/top-app/cpus 0-3
+    write /dev/cpuset/top-app/mems 0
+service bootlog /system/bin/logcat -b all -v threadtime -f /cache/bootlog.txt
+    class core
+    user root
+    group root system log readproc
+    disabled
+on boot
+    start bootlog
+
+# Generic light@2.0 HAL (replaces aw2013 variant which opens a nonexistent /sys/class/leds/blue)
+service light-hal-2-0 /vendor/bin/hw/android.hardware.light@2.0-service
+    class hal
+    user system
+    group system
