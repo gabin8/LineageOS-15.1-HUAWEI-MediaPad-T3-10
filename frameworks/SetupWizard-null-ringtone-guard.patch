@@ -1,0 +1,13 @@
+--- a/packages/apps/SetupWizard/src/org/lineageos/setupwizard/util/EnableAccessibilityController.java.bak	2026-10-29 20:36:53.079286171 +0200
++++ a/packages/apps/SetupWizard/src/org/lineageos/setupwizard/util/EnableAccessibilityController.java	2026-10-29 20:40:02.805352248 +0200
+@@ -111,7 +111,9 @@
+             }
+         });
+         mTone = RingtoneManager.getRingtone(context, Settings.System.DEFAULT_NOTIFICATION_URI);
+-        mTone.setStreamType(AudioManager.STREAM_MUSIC);
++        if (mTone != null) {
++            mTone.setStreamType(AudioManager.STREAM_MUSIC);
++        }
+         mTouchSlop = context.getResources().getDimensionPixelSize(
+                 R.dimen.accessibility_touch_slop);
+     }
