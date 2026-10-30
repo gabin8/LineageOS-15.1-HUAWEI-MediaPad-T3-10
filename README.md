@@ -1,9 +1,8 @@
-# LineageOS 15.1 for Huawei MediaPad T3 10 (AGS-W09 / "agassi")
+# LineageOS 15.1 for HUAWEI MediaPad T3 10 (AGS-W09, codename "agassi")
 
-**Status: BOOTS END-TO-END to the LineageOS setup wizard / launcher, with working WiFi.** system_server is stable,
-SystemUI runs, the panel lights, HIDL/binder HALs register, storage mounts, and the LineageOS
-Setup Wizard is interactive (Welcome → Locale → …). As far as I know this is the first time this
-exact unit (Snapdragon T3, **not** the Kirin AGS2) has fully booted a from-source LineageOS.
+**Status: daily-usable.** LineageOS 15.1 boots to the launcher and has WiFi, audio (speaker + mics),
+both cameras, auto-rotate, charging and WebView. See the table below for what's left. As far as
+I know this is the first time this exact unit (Snapdragon T3, **not** the Kirin AGS2) has fully booted a from-source LineageOS.
 
 - **Device:** Huawei MediaPad T3 10, model **AGS-W09** (Wi‑Fi only), codename **agassi / ags_w09**
 - **SoC:** Qualcomm Snapdragon 425 / MSM8917 (msm8937 family), 4 cores, 2 GB RAM
@@ -32,7 +31,7 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | **Live adb in the main boot** (FunctionFS gadget) | ✅ |
 | **Full boot:** zygote → SystemUI → setup wizard / Trebuchet launcher | ✅ |
 | Touch, power/volume keys (keylayout), no input stalls | ✅ |
-| Stock identity (AGS-W09 / HUAWEI, tablet, density 213) | ✅ |
+| Stock identity (AGS-W09 / HUAWEI, tablet, density 213); About shows **HUAWEI MediaPad T3 10 (AGS-W09)** | ✅ |
 | Wi-Fi-only: no SIM icon (`ro.radio.noril`), no telephony features, on-screen navigation bar | ✅ |
 | Tablet UI wording ("About tablet"), no dialer/SMS/SIM-toolkit apps (rebuilt system image) | ✅ |
 | Real factory WiFi MAC (from `oeminfo`) | ✅ |
@@ -167,6 +166,9 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     stock values from this unit's `product`/`version` partitions (AGS-W09, HUAWEI, HWAGS-Q, AGSEEA,
     `tablet`); system/vendor/bootimage fingerprints must match or Android shows an "internal problem"
     dialog. **Density 213** (stock) instead of 320, which made the 800 px panel a ~400 dp *phone*.
+    The marketing name is stock's too: `ro.config.marketing_name=HUAWEI MediaPad T3 10` (from the
+    `product` partition). `frameworks/Settings-show-marketing-name.patch` makes Settings → About show
+    "HUAWEI MediaPad T3 10 (AGS-W09)". `ro.product.model` stays `AGS-W09` for apps and the fingerprint.
 
 ### Wi-Fi-only tablet product (`device/device-tree.patch`)
 22. The clienthax tree is a Redmi 4A/5A (phone) clone, so the build was a **phone**:

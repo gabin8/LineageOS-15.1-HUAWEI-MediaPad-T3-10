@@ -44,3 +44,5 @@ ro.zygote=zygote64_32
 # logd.klogd spins at 100% CPU on this kernel (dmesg still has the kernel log). Must be
 # set before logd starts, so it lives here rather than in /system/build.prop.
 ro.logd.kernel=false
+# Stock marketing name (Huawei product partition), shown in Settings > About
+ro.config.marketing_name=HUAWEI MediaPad T3 10

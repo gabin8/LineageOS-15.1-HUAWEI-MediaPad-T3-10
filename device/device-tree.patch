@@ -17,10 +17,10 @@ index 2f798a2..a106ff8 100644
 +WIFI_DRIVER_STATE_OFF := "stop"
 +WIFI_DRIVER_OPERSTATE_PATH := "/sys/class/net/wlan0/operstate"
 diff --git a/device.mk b/device.mk
-index 9d61cfe..2123205 100644
+index 9d61cfe..d130a85 100644
 --- a/device.mk
 +++ b/device.mk
-@@ -26,3 +26,30 @@ include $(DEVICE_PATH)/product/*.mk
+@@ -26,3 +26,34 @@ include $(DEVICE_PATH)/product/*.mk
  
  # Inherit proprietary files
  $(call inherit-product-if-exists, vendor/huawei/ags_w09/ags_w09-vendor.mk)
@@ -47,6 +47,10 @@ index 9d61cfe..2123205 100644
 +# logd.klogd spins at 100% CPU on this 3.18 kernel; kernel log stays available via dmesg
 +PRODUCT_PROPERTY_OVERRIDES += \
 +    ro.logd.kernel=false
++
++# Stock marketing name (Huawei product partition); Settings > About shows it with the model
++PRODUCT_PROPERTY_OVERRIDES += \
++    ro.config.marketing_name=HUAWEI MediaPad T3 10
 +
 +# Shims for Huawei vendor blobs (sensors HAL: libizat_core needs get_process_name)
 +PRODUCT_PACKAGES += \
