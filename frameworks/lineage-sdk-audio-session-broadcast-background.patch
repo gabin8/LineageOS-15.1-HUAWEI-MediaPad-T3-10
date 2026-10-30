@@ -1,0 +1,15 @@
+Backport of LineageOS/android_lineage-sdk dc5d872a2f (lineage-16.0, 2019-02-04)
+"LineageAudioService: Make audio session broadcast explicit" to lineage-15.1.
+
+diff --git a/lineage/lib/main/java/org/lineageos/platform/internal/LineageAudioService.java b/lineage/lib/main/java/org/lineageos/platform/internal/LineageAudioService.java
+index ffd439e..93c0883 100644
+--- a/lineage/lib/main/java/org/lineageos/platform/internal/LineageAudioService.java
++++ b/lineage/lib/main/java/org/lineageos/platform/internal/LineageAudioService.java
+@@ -128,6 +128,7 @@ public class LineageAudioService extends LineageSystemService {
+ 
+     private void sendBroadcastToAll(Intent intent, String receiverPermission) {
+         intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
++        intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+ 
+         final long ident = Binder.clearCallingIdentity();
+         try {
