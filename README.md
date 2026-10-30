@@ -37,7 +37,7 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | Tablet UI wording ("About tablet"), no dialer/SMS/SIM-toolkit apps (rebuilt system image) | ✅ |
 | Real factory WiFi MAC (from `oeminfo`) | ✅ |
 | Browser / WebView (Chromium 138) | ✅ |
-| Charging | ✅ (slow on a PC USB port; ~1 A cap on a wall charger) |
+| Charging (SMB1360; same driver and limits as stock: ≤1.2 A input, 1.2 A into the battery) | ✅ (input is AICL-limited by the source/cable, e.g. 450-600 mA on a PC/hub port) |
 | **Audio**: real Qualcomm HAL — speaker playback + built-in mics (recording 16/44.1/48 kHz, mono/stereo) | ✅ |
 | Thermal mitigation (`thermal-engine`), `time_daemon` | ✅ |
 | Hardware video decoder (Venus/OMX) | ⚠️ initialises now (device permissions fixed); playback not verified |
@@ -186,8 +186,18 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     shim preloaded into the HAL service (`vendor/sensors/`). Side effect: with the ADSP up, the
     `msm8952-snd-card-mtp` sound card registers too (prerequisite for real audio).
 25. **logd at 100% CPU** — `logd.klogd` loops on `/dev/kmsg` on this 3.18 kernel. That one core ate the
-    whole USB charging budget (the battery *discharged* ~20-75 mA while showing "Charging"; now
-    charges). `persist.logd.kernel=false` / `ro.logd.kernel=false`; the kernel log stays in `dmesg`.
+    whole USB charging budget: the battery *discharged* while showing "Charging". The kernel log stays in
+    `dmesg`. The switch has to be **`ro.logd.kernel=false` in the ramdisk `default.prop`**: logd decides
+    on klogd once, at `post-fs`, before `/data` persist props exist. `persist.logd.kernel=false` alone
+    silently stops working after a reboot. The early-bring-up `bootlog` service (`logcat -b all -f
+    /cache/bootlog.txt`) is gone from the ramdisk too: it filled `/cache` (250 MB) and held ~550 MB of RAM
+    and a core. Measured on a 600 mA-limited USB port with the screen on: from −130…−420 mA to
+    +275 mA into the battery.
+    Charging itself works like stock. The stock Oreo kernel has the same Huawei AGS SMB1360 driver
+    (AC input capped at 1.2 A, fast charge 1.2 A through the 10 mΩ sense resistor, AICL threshold
+    4.5 V); stock userspace (`chargemonitor`) can only lower it. On a weak source or a thin cable,
+    AICL settles lower; read it from `/sys/kernel/debug/smb1360` register `0x48` (low 7 bits index
+    300, 400, 450, 500, 600 … 1500 mA). `current_now` is negative while the battery charges.
 26. **No WebView → browser crash** — LineageOS purged the lineage-15.1 WebView LFS objects; the blob that
     could still be fetched is WebView 156 (`minSdk 29`), which PackageManager rejects on 8.1, so nothing
     provides a WebView. Use Chromium's own **SystemWebView 138.0.7204.0** (the last generation that supports
