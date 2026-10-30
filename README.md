@@ -373,6 +373,12 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     HEVC track whose `hvcC` record has configurationVersion 0 (`E Utils: b/23680780`, "Can't play this
     video") before any decoder starts. Early HEVC muxers wrote 0, e.g. libde265.org's HEVC encodes of
     Sintel and Big Buck Bunny. Backported from AOSP 10: accept 0 as well as 1.
+43. **`StreamHAL: Error from HAL stream in function get_presentation_position: Operation not permitted`**
+    (`frameworks/audio-StreamOut-presentation-position-EPERM.patch`, `hardware/interfaces`): logged twice per
+    output start and ~50 times in a row when e.g. ExoPlayer opens a track. AudioFlinger polls the position
+    while the HAL stream is still in standby; CAF's HAL returns `-ENODATA` then, which the HIDL wrapper
+    already ignores, but Huawei's blob returns `-1`. Same `INVALID_STATE` result either way (steady playback
+    never fails), so the wrapper now ignores `EPERM` too.
 
 ## Build & flash (outline)
 
