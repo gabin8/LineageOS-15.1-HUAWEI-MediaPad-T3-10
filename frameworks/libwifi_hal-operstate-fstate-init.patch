@@ -1,0 +1,13 @@
+diff --git a/libwifi_hal/wifi_hal_common.cpp b/libwifi_hal/wifi_hal_common.cpp
+index 4cc776e..1d38fc0 100644
+--- a/libwifi_hal/wifi_hal_common.cpp
++++ b/libwifi_hal/wifi_hal_common.cpp
+@@ -162,7 +162,7 @@ int is_wifi_driver_loaded() {
+ #ifdef WIFI_DRIVER_OPERSTATE_PATH
+ int is_wifi_driver_ready() {
+   struct stat sbuf;
+-  FILE *fstate;
++  FILE *fstate = NULL;
+   char operstate[8];
+   int open_count = 25, read_count = 25;
+   while (open_count-- >= 0) {
