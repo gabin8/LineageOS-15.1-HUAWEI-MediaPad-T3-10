@@ -19,6 +19,7 @@ In `device/huawei/ags_w09/proprietary-files.txt`, comment out the two entries so
 | `vendor/etc/init/rild.rc` | radio daemon; Wi-Fi only |
 | `ims`, `imssettings`, `embms`, `qcrilmsgtunnel`, `dpmserviceapp`, `atfwd` (`PRODUCT_PACKAGES`) | Wi-Fi calling, LTE broadcast, RIL/AT/data-port plumbing; Wi-Fi only |
 | `qti-logkit`, `access-qcom-logkit` (`PRODUCT_PACKAGES`) | Qualcomm engineering log tool, not on stock Oreo; NPE-crashes at boot without DIAG access |
+| `vendor/etc/permissions/android.hardware.fingerprint.xml` | the T3 10 has no fingerprint sensor; the feature alone starts FingerprintService, which keeps looking for a HAL |
 
 Shims these blobs need live in `device/libshims` (`libshim_procname`).
 

@@ -126,6 +126,26 @@ index f3f40fb..b4120fb 100644
  # Set BUILD_FINGERPRINT variable to be picked up by both system and vendor build.prop
 -BUILD_FINGERPRINT := "Xiaomi/rolex/rolex:7.1.2/N2G47H/V9.2.6.0.NCCMIEK:user/release-keys"
 +BUILD_FINGERPRINT := "HUAWEI/AGSEEA/HWAGS-Q:8.0.0/HUAWEIAGS-W09/150(C431):user/release-keys"
+diff --git a/manifest.xml b/manifest.xml
+index 7ffb78b..953cf61 100644
+--- a/manifest.xml
++++ b/manifest.xml
+@@ -87,15 +87,6 @@ included.
+             <instance>widevine</instance>
+         </interface>
+     </hal>
+-    <hal format="hidl">
+-        <name>android.hardware.gatekeeper</name>
+-        <transport>hwbinder</transport>
+-        <version>1.0</version>
+-        <interface>
+-            <name>IGatekeeper</name>
+-            <instance>default</instance>
+-        </interface>
+-    </hal>
+     <hal format="hidl">
+         <name>android.hardware.gnss</name>
+         <transport>hwbinder</transport>
 diff --git a/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml b/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
 index b68f62a..6ccbd3f 100644
 --- a/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
@@ -203,6 +223,16 @@ index 4f07903..6fea0a8 100644
      sdm.debug.disable_rotator_split=1 \
      sdm.debug.disable_skip_validate=1 \
      sdm.perf_hint_window=50 \
+diff --git a/product/gatekeeper.mk b/product/gatekeeper.mk
+deleted file mode 100644
+index 425d53c..0000000
+--- a/product/gatekeeper.mk
++++ /dev/null
+@@ -1,4 +0,0 @@
+-# Gatekeeper HAL
+-PRODUCT_PACKAGES += \
+-    android.hardware.gatekeeper@1.0-impl \
+-    android.hardware.gatekeeper@1.0-service
 diff --git a/product/media.mk b/product/media.mk
 index a60581a..c620ddc 100644
 --- a/product/media.mk
