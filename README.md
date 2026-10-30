@@ -41,7 +41,7 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | Charging (SMB1360; same driver and limits as stock: ≤1.2 A input, 1.2 A into the battery) | ✅ (input is AICL-limited by the source/cable, e.g. 450-600 mA on a PC/hub port) |
 | **Audio**: real Qualcomm HAL — speaker playback + built-in mics (recording 16/44.1/48 kHz, mono/stereo), Huawei's agassi ACDB calibration loaded | ✅ |
 | Thermal mitigation (`thermal-engine`), `time_daemon` | ✅ |
-| **Hardware video decoding** (Venus): H.264, HEVC, VP8 up to 1080p30 (VP9 in software); Big Buck Bunny/Sintel/Tears of Steel: 0–0.3% dropped frames | ✅ |
+| **Hardware video decoding** (Venus): H.264, HEVC, VP8 up to 1080p30 (VP9 in software); Big Buck Bunny/Sintel/Tears of Steel with sound: 0–1% dropped frames | ✅ |
 | **Camera**: rear 5 MP (s5k5e8, autofocus, factory OTP calibration) + front 2 MP (sp2509v) — preview and photos, stock EMUI 8 camera stack | ✅ |
 | Bluetooth | ❓ not brought up (`hciattach` from the vendor rc not ported) |
 | **WiFi** (WCN3660B / pronto, prima built into the kernel): scan + connect, 2.4 + 5 GHz | ✅ |
@@ -369,6 +369,10 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     `config_enableLockScreenRotation` is true for `sw600dp`, but LineageOS also requires its own
     "Rotate lock screen" setting (`lineagesettings` `lockscreen_rotation`), which defaults to off.
     Turn it on in Settings → Display.
+42. **Older HEVC files rejected** (`frameworks/Utils-hevc-hvcC-version0.patch`): Android 8.1 refuses an
+    HEVC track whose `hvcC` record has configurationVersion 0 (`E Utils: b/23680780`, "Can't play this
+    video") before any decoder starts. Early HEVC muxers wrote 0, e.g. libde265.org's HEVC encodes of
+    Sintel and Big Buck Bunny. Backported from AOSP 10: accept 0 as well as 1.
 
 ## Build & flash (outline)
 
