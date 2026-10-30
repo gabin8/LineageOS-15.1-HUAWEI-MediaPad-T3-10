@@ -1,3 +1,21 @@
+diff --git a/board/wlan.mk b/board/wlan.mk
+index 2f798a2..a106ff8 100644
+--- a/board/wlan.mk
++++ b/board/wlan.mk
+@@ -15,3 +15,13 @@ WIFI_DRIVER_FW_PATH_AP := "ap"
+ WIFI_DRIVER_FW_PATH_STA := "sta"
+ 
+ WPA_SUPPLICANT_VERSION := VER_0_8_X
++
++# prima is built into the kernel and started through Huawei's /proc/wifi_built_in/wifi_start,
++# like stock (whose HAL sets wlan.driver.trigger=start|stop and init writes that node).
++# The HAL starts the driver on Wi-Fi enable, waits for wlan0, and stops it on Wi-Fi disable.
++# init.wifi.sh still pre-starts it at boot (stock: wifi_driver_init); a second start is a
++# no-op in prima.
++WIFI_DRIVER_STATE_CTRL_PARAM := "/proc/wifi_built_in/wifi_start"
++WIFI_DRIVER_STATE_ON := "start"
++WIFI_DRIVER_STATE_OFF := "stop"
++WIFI_DRIVER_OPERSTATE_PATH := "/sys/class/net/wlan0/operstate"
 diff --git a/device.mk b/device.mk
 index 9d61cfe..2123205 100644
 --- a/device.mk

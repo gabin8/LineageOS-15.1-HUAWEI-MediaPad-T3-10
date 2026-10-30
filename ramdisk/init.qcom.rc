@@ -49,6 +49,10 @@ on post-fs-data
 on boot
     # the WiFi HAL writes "sta" here; with CONFIG_HUAWEI_WIFI_BUILTIN it only stores the string
     chown wifi wifi /sys/module/wlan/parameters/fwpath
+    # The WiFi HAL (user wifi) starts/stops the built-in prima driver here on Wi-Fi on/off
+    # (WIFI_DRIVER_STATE_CTRL_PARAM). Stock does the same via wlan.driver.trigger.
+    chown wifi wifi /proc/wifi_built_in/wifi_start
+    chmod 0220 /proc/wifi_built_in/wifi_start
 
 service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
     -ip2p0 -Dnl80211 -c/data/misc/wifi/p2p_supplicant.conf \

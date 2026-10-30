@@ -136,6 +136,21 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     before `/vendor` is mounted; top-level `/vendor/etc/init/*.rc` are still parsed later), so the ramdisk carries its `wpa_supplicant` service, the WiFi data dirs,
     and `chown wifi wifi /sys/module/wlan/parameters/fwpath` (the WiFi HAL writes `sta` there; without
     it: `Failed to change firmware mode` → `Failed to start HAL for client mode`).
+    **Driver start/stop like stock** (`device/device-tree.patch` board/wlan.mk,
+    `frameworks/libwifi_hal-operstate-fstate-init.patch`). WiFi stayed *off after every boot*:
+    WifiService enables WiFi ~17 s into boot, but prima only finishes loading (`wlan0` appears) at ~19 s,
+    so the HAL failed `Could not read interface state for wlan0 (No such device)` three times and gave
+    up until WiFi was toggled by hand. Stock solves this in its Huawei-modified `libwifi-hal`. On enable
+    it sets `wlan.driver.trigger=start`, init writes `/proc/wifi_built_in/wifi_start`, and the HAL waits
+    for the driver. On disable it sends `stop`. Stock also pre-starts the driver at boot with
+    `wifi_driver_init`, our `init.wifi.sh`. LineageOS's HAL has the same mechanism as board flags:
+    `WIFI_DRIVER_STATE_CTRL_PARAM=/proc/wifi_built_in/wifi_start` (`start`/`stop`) and
+    `WIFI_DRIVER_OPERSTATE_PATH=/sys/class/net/wlan0/operstate`, which waits up to 12.5 s for `wlan0`.
+    The ramdisk gives the HAL (user `wifi`) the node. prima serialises writes on a mutex and treats a
+    second `start` as a no-op, so the boot pre-start and the HAL's start can't collide. The patch
+    initialises `fstate` in `is_wifi_driver_ready()`, which LineageOS leaves undefined on a timeout.
+    Result: WiFi is up a few seconds after boot. Turning it off unloads prima (saves power) and turning
+    it on reloads it in ~0.4 s.
 
 ### Display, input, identity (`device/`, `vendor/apply-buildprop-fixes.sh`)
 19. **Flicker on touch** — the Huawei hwcomposer describes the GPU client target as RGBA8888-**UBWC**,
