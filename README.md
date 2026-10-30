@@ -397,6 +397,13 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
 46. **Phantom fingerprint support**: Huawei's shared vendor set ships `android.hardware.fingerprint.xml`
     though the T3 10 has no sensor, so FingerprintService kept looking for a HAL. Not shipped any more
     (`device/vendor-blobs.md`).
+47. **AudioFX (equalizer) never attached to playback** (`frameworks/lineage-sdk-audio-session-broadcast-background.patch`):
+    `BroadcastQueue: Background execution not allowed: receiving ... ACTION_AUDIO_SESSIONS_CHANGED to
+    org.lineageos.audiofx/.receiver.ServiceDispatcher` on every new audio session. On 8.1 a manifest receiver
+    of an app targeting O+ never gets an implicit broadcast unless it is flagged `FLAG_RECEIVER_INCLUDE_BACKGROUND`
+    (or needs a signature permission; `OBSERVE_AUDIO_SESSIONS` is `normal`), even while the app runs. Backported
+    lineage-sdk `dc5d872a2f` from lineage-16.0, which adds the flag. Now delivered, and each new session gets
+    AudioFX's chain (Equalizer, Virtualizer, Preset Reverb, Bass Boost).
 
 ## Build & flash (outline)
 
