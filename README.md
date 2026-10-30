@@ -233,12 +233,23 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     (HAL, daemon, libmmcamera2, chromatix) — the likely next step. Wart: the HAL looks up
     `display.qservice` (vndbinder) on open/close and waits ~4 s for it.
 
+### Kernel stability
+34. **Kernel oops → watchdog reboot on WiFi resume** (`kernel/prima-mdns-filter-oops.patch`). Huawei's
+    prima declares `wlan_hdd_set_filter(hdd_context_t*, pRequest, sessionId)` in
+    `wlan_hdd_early_suspend.c` (a newer Qualcomm signature), but this tree defines it as
+    `wlan_hdd_set_filter(hdd_adapter_t*, pRequest)`. The mDNS filter code passed the HDD *context*
+    where an *adapter* is expected → garbage HAL handle → NULL-ish dereference in
+    `sme_ReceiveFilterClearFilter` whenever Android left WiFi suspend mode (`SETSUSPENDMODE 0`) —
+    `Unable to handle kernel NULL pointer dereference at 00000004`, then a watchdog bite (~2 h uptime).
+    Fixed by passing the adapter; verified with `wpa_cli driver SETSUSPENDMODE 1/0` loops.
+
 ## Build & flash (outline)
 
 > Assumes the clienthax LineageOS 15.1 tree builds for you and you have the engineering bootloader.
 
 ```bash
 # 1. Kernel: drop kernel/binder/* into drivers/staging/android/, set the binder devices config,
+#    apply kernel/prima-mdns-filter-oops.patch,
 #    (optionally) apply kernel/ambient-caps-3.18.patch, build Image.gz (GCC 4.9 aarch64).
 # 2. DTB:  python3 scripts/patch_dtb.py <dtb> <out.dtb> --ramoops
 # 3. Ramdisk: apply ramdisk/* (init.rc charger patch; init.qcom.rc, init.usb.rc, default.prop,
