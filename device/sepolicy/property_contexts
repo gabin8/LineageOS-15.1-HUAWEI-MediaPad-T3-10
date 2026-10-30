@@ -1,0 +1,3 @@
+# Oreo (EMUI 8) camera stack uses the persist.vendor./vendor. namespace
+persist.vendor.camera.		u:object_r:camera_prop:s0
+vendor.camera.			u:object_r:camera_prop:s0

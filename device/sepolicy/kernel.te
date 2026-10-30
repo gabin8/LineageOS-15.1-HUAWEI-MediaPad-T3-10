@@ -1,0 +1,2 @@
+allow kernel hwlog_device:chr_file rw_file_perms;
+dontaudit kernel self:capability { dac_override dac_read_search };

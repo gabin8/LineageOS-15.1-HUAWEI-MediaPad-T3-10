@@ -1,0 +1,2 @@
+allow system_server lirc_device:chr_file rw_file_perms;
+get_prop(system_server, camera_prop)

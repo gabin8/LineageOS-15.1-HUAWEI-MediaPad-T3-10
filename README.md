@@ -26,7 +26,8 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | Area | State |
 |---|---|
 | Kernel, SMP, memory, mounts (`/system` `/vendor` `/data` `/cache` via ramdisk `mount_all`) | ✅ |
-| Android init, properties, SELinux (permissive), HIDL/binder, HALs register | ✅ |
+| Android init, properties, HIDL/binder, HALs register | ✅ |
+| **SELinux enforcing**: no denials in a boot + camera/audio/WiFi/sensors/browser run | ✅ |
 | **Display panel** (BOE NT51017 9.6" 800p via lcdkit) + HWComposer/SurfaceFlinger, GPU composition (no flicker) | ✅ |
 | **Live adb in the main boot** (FunctionFS gadget) | ✅ |
 | **Full boot:** zygote → SystemUI → setup wizard / Trebuchet launcher | ✅ |
@@ -286,6 +287,34 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     `Unable to handle kernel NULL pointer dereference at 00000004`, then a watchdog bite (~2 h uptime).
     Fixed by passing the adapter; verified with `wpa_cli driver SETSUSPENDMODE 1/0` loops.
 
+### Security
+35. **SELinux enforcing** (`device/sepolicy/`, merged into the device tree's `sepolicy/`). The policy
+    sits in the ramdisk (`/sepolicy`, `*_contexts`) on this non-Treble build, so every step was a
+    RAM-boot. The logd audit rate limit (20/s) drops records, so it took a few permissive rounds before
+    the enforcing ones. What it needed:
+    - **Labels.** Partitions are only reachable as `/dev/block/platform/soc/7824900.sdhci/by-name/*`
+      (labelled for system/vendor/userdata/cache/persist/misc/boot/recovery/modem/oeminfo), and the
+      cmdline gets stock's `androidboot.bootdevice=7824900.sdhci`. `/firmware` is mounted with stock's
+      `context=u:object_r:firmware_file:s0`. `genfscon` covers `/proc/wifi_built_in`, Huawei's
+      `hw_audio_info` sysfs and the gpio LEDs (`sysfs_leds`). `/dev/hwlog_*` gets a device type. Files
+      pushed by hand inherit their directory's label, so run `restorecon -R /vendor` after pushing
+      blobs: that is what puts the camera daemon in `mm-qcamerad` and the light HAL in
+      `hal_light_default` instead of `init`, and gives the GPU libs `same_process_hal_file`.
+    - **`init.wifi.sh` in its own `wifi_bringup` domain** instead of `su`. It may read oeminfo
+      (factory MAC), cache in `/data/misc/wifi`, write `/proc/wifi_built_in`, and exec
+      `wcnss_service`. The NV copy and the firmware path moved into `init.qcom.rc`, and the fallback
+      mounts are gone (fstab has them).
+    - **Oreo camera:** `persist.vendor.camera.*` → `camera_prop`, `/data/vendor/camera`, and Huawei's
+      `IHwCameraResourceService` hwservice.
+    - **Sensors / auto-rotate.** The sensors HAL rc `LD_PRELOAD`s `libshim_procname`. Under enforcing
+      the init → `hal_sensors_default` transition sets `AT_SECURE` and the linker silently drops
+      `LD_PRELOAD`. AOSP `dontaudit`s that, so nothing is logged and the HAL just comes up with 0
+      sensors (the screen stays portrait). `allow init hal_sensors_default:process noatsecure;`
+      fixes it.
+    - Small rules for the WiFi HAL (`wifi_start`), thermal-engine sockets, mediaextractor on fuse and
+      `com.qualcomm.timeservice` (runs as `system_app`). Apps enumerating properties (Chromium) are
+      `dontaudit`ed.
+
 ## Build & flash (outline)
 
 > Assumes the clienthax LineageOS 15.1 tree builds for you and you have the engineering bootloader.
@@ -298,6 +327,9 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
 # 3. Ramdisk: apply ramdisk/* (init.rc charger patch; init.qcom.rc, init.usb.rc, default.prop,
 #    fstab.qcom as provided; real /default.prop file).
 # 4. Sign:  scripts/make_signed_boot.sh  "Image.gz+dtb"  ramdisk.cpio.gz  boot.img  "<cmdline>"
+#    cmdline: androidboot.hardware=qcom androidboot.bootdevice=7824900.sdhci (SELinux enforcing;
+#    add androidboot.selinux=permissive only for debugging). The ramdisk needs the sepolicy and
+#    *_contexts built from the tree (mka selinux_policy nonplat_property_contexts ...).
 # 5. Flash userspace, keep stock boot on the partition, RAM-boot the signed image:
 fastboot flash system system.img && fastboot flash vendor vendor.img
 fastboot flash boot <stock boot.bin>          # safe partition — do NOT flash the custom image
@@ -313,7 +345,7 @@ adb shell 'sh /data/local/tmp/remove-qcom-diag-gid.sh; sh /data/local/tmp/disabl
 adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/local/tmp/apply-buildprop-fixes.sh
 #    shims (device/libshims, built with the tree) → /vendor/lib{,64}; replace
 #    /vendor/etc/init/android.hardware.sensors@1.0-service.rc with vendor/sensors/'s copy and move
-#    unwanted rc files to /vendor/etc/init-disabled.
+#    unwanted rc files to /vendor/etc/init-disabled. Finally: adb shell restorecon -R /vendor
 # For a reproducible build: apply device/device-tree.patch, add device/liblight and device/configs to the device tree,
 # drop the lights blob and swap in the Oreo camera blobs (device/vendor-blobs.md), fold 11-15 into
 # the vendor image, and apply 16.
@@ -323,7 +355,6 @@ adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/
 - **WiFi hotspot:** untested; `WCNSS_qcom_cfg_ags.ini` (the Huawei per-device variant) vs the generic
   `WCNSS_qcom_cfg.ini` currently used is worth comparing.
 - **Release-key signing**: the build uses AOSP test keys (Trust warns "signed with public keys").
-- **SELinux enforcing**: still permissive; needs policy for the added services and stock blobs.
 - **Bluetooth**, **GPS**: not brought up.
 - Make all the on-device fixes part of the vendor/system image for a one-shot flash.
 

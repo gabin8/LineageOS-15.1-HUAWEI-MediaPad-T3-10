@@ -1,0 +1,2 @@
+# Huawei EMUI 8 camera HAL (libcamera_huawei_hal3.so) registers this from the camera provider
+vendor.huawei.hardware.camera.camResource::IHwCameraResourceService u:object_r:hal_camera_hwservice:s0

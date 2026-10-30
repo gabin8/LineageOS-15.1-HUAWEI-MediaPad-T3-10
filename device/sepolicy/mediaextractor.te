@@ -1,0 +1,2 @@
+# Media files on /sdcard (fuse on this kernel)
+allow mediaextractor fuse:file { getattr read };

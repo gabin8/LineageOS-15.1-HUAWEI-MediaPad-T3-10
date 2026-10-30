@@ -1,0 +1,2 @@
+# com.qualcomm.timeservice runs as system_app (sharedUserId android.uid.system), not timeservice_app
+allow system_app time_daemon:unix_stream_socket connectto;

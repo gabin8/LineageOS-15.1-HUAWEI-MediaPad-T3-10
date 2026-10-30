@@ -1,0 +1,5 @@
+type lirc_device, dev_type;
+type vendor_block_device, dev_type;
+type oeminfo_block_device, dev_type;
+# Huawei kernel log nodes (/dev/hwlog_*), opened by the kernel's own log workers
+type hwlog_device, dev_type;
