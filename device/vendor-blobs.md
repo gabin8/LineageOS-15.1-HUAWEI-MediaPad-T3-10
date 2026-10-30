@@ -45,3 +45,19 @@ The script removes the 916 Nougat-only camera files (`nougat-camera-remove.txt`)
 It also installs `cpp_firmware_*.fw` to **`/vendor/firmware`**. The Nougat list put them in
 `/vendor/etc/firmware`, which ueventd never searches, so the CPP (post-processing engine) never
 got its firmware and the ISP couldn't map the preview/snapshot streams.
+
+## Video codecs (OMX) and audio calibration (ACDB): stock EMUI 8 (Oreo) blobs
+
+This port already runs Huawei's stock Oreo gralloc/display and audio HAL. The Nougat `libOmxVdec`
+reads gralloc1 buffer handles with the old layout (`Invalid filled length = 3133440, buffer size =
+1920`), so every hardware decode failed ("Can't play this video"); the Nougat `libacdbloader` lacks
+the v3 API the Oreo audio HAL calls (`acdb_loader_init_v3`), so audio calibration never loaded.
+Use the 57 Oreo blobs in `vendor/oreo-media-audio/oreo-media-audio-blobs.txt`:
+
+    vendor/oreo-media-audio/use-oreo-blobs.sh tree <lineage root> /mnt/oreo_vendor   # build tree
+    vendor/oreo-media-audio/use-oreo-blobs.sh device /mnt/oreo_vendor                # running device
+
+and drop the source-built OMX modules from `product/media.mk` (in `device-tree.patch`). The audio
+HAL also needs Huawei's **product** partition mounted at `/product` (ramdisk `fstab.qcom` + an empty
+`/product` directory in the ramdisk): the agassi ACDB tuning, mixer paths and platform info live in
+`/product/etc/acdbdata/agassi`.

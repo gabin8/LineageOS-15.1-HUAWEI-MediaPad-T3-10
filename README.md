@@ -39,14 +39,14 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | Real factory WiFi MAC (from `oeminfo`) | ✅ |
 | Browser / WebView (Chromium 138) | ✅ |
 | Charging (SMB1360; same driver and limits as stock: ≤1.2 A input, 1.2 A into the battery) | ✅ (input is AICL-limited by the source/cable, e.g. 450-600 mA on a PC/hub port) |
-| **Audio**: real Qualcomm HAL — speaker playback + built-in mics (recording 16/44.1/48 kHz, mono/stereo) | ✅ |
+| **Audio**: real Qualcomm HAL — speaker playback + built-in mics (recording 16/44.1/48 kHz, mono/stereo), Huawei's agassi ACDB calibration loaded | ✅ |
 | Thermal mitigation (`thermal-engine`), `time_daemon` | ✅ |
-| Hardware video decoder (Venus/OMX) | ⚠️ initialises now (device permissions fixed); playback not verified |
+| **Hardware video decoding** (Venus): H.264, HEVC, VP8 up to 1080p30 (VP9 in software); Big Buck Bunny/Sintel/Tears of Steel: 0–0.3% dropped frames | ✅ |
 | **Camera**: rear 5 MP (s5k5e8, autofocus, factory OTP calibration) + front 2 MP (sp2509v) — preview and photos, stock EMUI 8 camera stack | ✅ |
 | Bluetooth | ❓ not brought up (`hciattach` from the vendor rc not ported) |
 | **WiFi** (WCN3660B / pronto, prima built into the kernel): scan + connect, 2.4 + 5 GHz | ✅ |
 | WiFi hotspot | ❓ untested (builtin prima ignores `fwpath`; AP mode needs `con_mode`) |
-| Accelerometer + auto-rotate (mCube MC3xxx via the ADSP sensor core) | ✅ |
+| Accelerometer + auto-rotate (mCube MC3xxx via the ADSP sensor core); lock screen rotates too (Settings → Display → Rotate lock screen) | ✅ |
 | GPS / real IZAT location | ❌ gnss is a stub HAL; QC location stack disabled (incompatible libs) |
 
 ## The fix chain (what it took to boot)
@@ -337,6 +337,39 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
       were replaced by the signed ones from the build, and the 8 Qualcomm apps the tree no longer ships
       were removed. Only AOSP's presigned, permission-less CTS shims keep a test signature.
 
+### Media
+37. **Hardware video decoding** (`vendor/oreo-media-audio/`, `device/vendor-blobs.md`). Every hardware
+    decode failed with "Can't play this video". `libOmxVdec` started, Venus booted, then each output
+    buffer was rejected: `Invalid filled length = 3133440, buffer size = 1920`. The Nougat OMX blobs read
+    the Oreo gralloc's handles with the old layout, the same bug class as the Nougat camera HAL. The
+    stock EMUI 8 OMX set fixes it. MSM8917 decodes **H.264 (incl. secure), HEVC and VP8 in hardware, up
+    to 1920x1088 at 244,800 MB/s (1080p30), 20 Mbit/s**, and encodes H.264 at the same limit. MPEG-4,
+    H.263 and VP9 decode in software; VP9 1080p takes ~3 of 4 cores. Measured with CC BY clips (Blender
+    Foundation): Sintel 1080p24 0 dropped frames, Sintel trailer 2/738, Tears of Steel 720p 0/1471, at
+    ~3–6% codec CPU. 1080p60 H.264 is past the hardware limit and doesn't play.
+38. **Audio calibration** (same blob set + `/product`). The stock Oreo audio HAL calls the v3 ACDB API,
+    which the Nougat `libacdbloader` lacks (`undefined symbol: acdb_loader_init_v3`). It also looks
+    for this tablet's tuning in `/product/etc/acdbdata/agassi` (product identifier "agassi"): speaker,
+    handset, headset and Bluetooth `.acdb` files, mixer paths and platform info, on Huawei's
+    **product** partition. So ACDB never initialised (`ACDB -> Not correctly initialized!`,
+    `q6asm_send_cal: cal_block is NULL`) and the DSP played uncalibrated. With the Oreo ACDB libraries
+    and `/product` mounted read-only from the ramdisk `fstab.qcom`, the HAL loads all seven agassi
+    calibration files and sends speaker calibration on playback.
+39. **MP3 audio in QuickTime/MOV** (`frameworks/MPEG4Extractor-quicktime-mp3.patch`): Android 8.1's
+    extractor drops `.mp3`/`ms U` sound sample entries, so e.g. Blender's Tears of Steel `.mov` played
+    silent. Backported from AOSP 10's `MPEG4Extractor`: map them to `audio/mpeg`, skip the QuickTime
+    v1/v2 sound-description extension for every QuickTime audio entry, ignore atoms inside `wave`.
+40. **Eleven ANR on media keys** (`frameworks/Eleven-media-button-foreground.patch`). Since 2018
+    upstream starts `MusicPlaybackService` with `startForegroundService()` from the media button
+    receiver, but the service only calls `startForeground()` when playback starts. Pause or stop with
+    nothing playing then ends in an ANR (or a `RemoteServiceException` when the command stops the
+    service). This was never fixed upstream before Eleven was replaced by Twelve. The service now
+    enters the foreground right away for media-button starts and leaves it again unless playing.
+41. **Lock screen stuck in portrait** after every reboot: not a sensor problem. Like stock,
+    `config_enableLockScreenRotation` is true for `sw600dp`, but LineageOS also requires its own
+    "Rotate lock screen" setting (`lineagesettings` `lockscreen_rotation`), which defaults to off.
+    Turn it on in Settings → Display.
+
 ## Build & flash (outline)
 
 > Assumes the clienthax LineageOS 15.1 tree builds for you and you have the engineering bootloader.
@@ -380,8 +413,6 @@ adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/
 - Make all the on-device fixes part of the vendor/system image for a one-shot flash. `/vendor` on this unit still
   differs from a tree build: stock Oreo GPU/display/audio blobs, removed TrustZone `gatekeeper`/`keystore` modules,
   the generic light + GNSS stub HALs, Adreno firmware in `/vendor/firmware`, a hand-edited `build.prop`.
-- Eleven (music app) ANRs when a media key starts its service with nothing queued
-  (`startForegroundService()` without `startForeground()`).
 
 ## Credits & license
 Built on the GPLv2 Linux kernel and the clienthax and LineageOS sources; the ambient-caps patch is
