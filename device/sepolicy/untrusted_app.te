@@ -1,0 +1,3 @@
+# Apps that enumerate system properties (Chromium/WebView in Jelly) touch every property area,
+# including ones they can't read; the read fails harmlessly, don't log it
+dontaudit untrusted_app_all property_type:file { getattr open read };

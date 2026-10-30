@@ -1,0 +1,2 @@
+# thermal-engine recreates its /dev/socket/thermal-* sockets itself
+type_transition thermal-engine socket_device:sock_file thermal_socket;

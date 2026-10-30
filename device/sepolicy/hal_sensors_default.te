@@ -1,0 +1,4 @@
+# The sensors HAL rc preloads libshim_procname (get_process_name() for Huawei libizat_core).
+# Without noatsecure the init->hal_sensors_default transition sets AT_SECURE, the linker drops
+# LD_PRELOAD, multihal fails to dlopen sensors.ssc.so and no sensors register (no auto-rotate).
+allow init hal_sensors_default:process noatsecure;

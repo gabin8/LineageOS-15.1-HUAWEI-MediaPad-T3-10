@@ -31,7 +31,7 @@ service wifi-bringup /system/bin/sh /init.wifi.sh
     class late_start
     user root
     group root system wifi
-    seclabel u:r:su:s0
+    seclabel u:r:wifi_bringup:s0
     oneshot
 
 # WiFi framework plumbing from /vendor/etc/init/hw/init.qcom.rc (not parsed on this
@@ -45,6 +45,11 @@ on post-fs-data
     mkdir /data/misc/wifi 0770 wifi wifi
     mkdir /data/misc/wifi/sockets 0770 wifi wifi
     mkdir /data/misc/wifi/wpa_supplicant 0770 wifi wifi
+    # NV under the name Huawei's wcnss_service derives from the hardware IDs
+    mkdir /data/misc/wifi/nvbin 0770 wifi wifi
+    copy /vendor/etc/wifi/WCNSS_hw_wlan_nv_ags_w09.bin /data/misc/wifi/nvbin/msm8937_303_0x00_0x01_0x00_nv.bin
+    chown wifi wifi /data/misc/wifi/nvbin/msm8937_303_0x00_0x01_0x00_nv.bin
+    chmod 0644 /data/misc/wifi/nvbin/msm8937_303_0x00_0x01_0x00_nv.bin
 
 on boot
     # the WiFi HAL writes "sta" here; with CONFIG_HUAWEI_WIFI_BUILTIN it only stores the string

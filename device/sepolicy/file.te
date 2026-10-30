@@ -1,0 +1,4 @@
+# Huawei prima control nodes: /proc/wifi_built_in/{wifi_start,mac_addr_hw,debug_level_hw}
+type proc_wifi_built_in, fs_type;
+# Huawei audio board info read by the audio HAL (speaker PA, audio property)
+type sysfs_hw_audio_info, fs_type, sysfs_type;

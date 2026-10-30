@@ -1,0 +1,23 @@
+# /init.wifi.sh: factory MAC from oeminfo, wcnss_service, prima pre-start (stock: wifi_driver_init).
+# Started from the ramdisk init.qcom.rc with "seclabel u:r:wifi_bringup:s0".
+type wifi_bringup, domain;
+domain_trans(init, shell_exec, wifi_bringup)
+
+allow wifi_bringup shell_exec:file rx_file_perms;
+allow wifi_bringup { system_file toolbox_exec }:file rx_file_perms;
+allow wifi_bringup rootfs:file r_file_perms;
+
+# init.wifi_mac.sh: read the oeminfo record, cache the decoded MAC in /data/misc/wifi
+allow wifi_bringup block_device:dir search;
+allow wifi_bringup oeminfo_block_device:blk_file r_file_perms;
+allow wifi_bringup wifi_data_file:dir rw_dir_perms;
+allow wifi_bringup wifi_data_file:file create_file_perms;
+allow wifi_bringup self:capability dac_override;
+
+# MAC + driver start
+allow wifi_bringup proc_wifi_built_in:dir search;
+allow wifi_bringup proc_wifi_built_in:file { getattr w_file_perms };
+allow wifi_bringup persist_file:dir search;
+
+domain_auto_trans(wifi_bringup, wcnss_service_exec, wcnss_service)
+allow wifi_bringup firmware_file:dir search;

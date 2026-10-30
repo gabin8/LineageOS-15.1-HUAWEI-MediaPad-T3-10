@@ -1,0 +1,2 @@
+allow hal_audio_default sysfs_hw_audio_info:dir search;
+allow hal_audio_default sysfs_hw_audio_info:file r_file_perms;

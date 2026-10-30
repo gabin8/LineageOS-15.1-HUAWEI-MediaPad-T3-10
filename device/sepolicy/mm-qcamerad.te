@@ -1,0 +1,4 @@
+# EMUI 8 daemon keeps cam_socket%d and AEC/antibanding data in /data/vendor/camera
+allow mm-qcamerad vendor_camera_data_file:dir rw_dir_perms;
+allow mm-qcamerad vendor_camera_data_file:file create_file_perms;
+set_prop(mm-qcamerad, camera_prop)

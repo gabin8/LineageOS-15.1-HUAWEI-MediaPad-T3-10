@@ -1,0 +1,5 @@
+# Started from init.wifi.sh (wifi_bringup); provisions /data/misc/wifi/nvbin
+allow wcnss_service wifi_bringup:fd use;
+allow wcnss_service self:capability { chown dac_override fowner };
+# It probes ro.serialno (MAC fallback); not readable by design and not needed (MAC from oeminfo)
+dontaudit wcnss_service serialno_prop:file { getattr open read };
