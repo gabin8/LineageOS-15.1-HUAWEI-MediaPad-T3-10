@@ -385,6 +385,18 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     (dex checksum differs), so the profile never updates and background dexopt can't precompile those apps'
     hot code. After flashing a changed system, reset them: `adb shell cmd package compile --reset -a` (or per
     package). Found on Settings, SystemUI, Eleven, Jelly and LineageParts.
+45. **Screen lock (PIN/pattern/password) could not be set** (`device/device-tree.patch`). The vendor manifest
+    declared `android.hardware.gatekeeper@1.0`, but Huawei's gatekeeper needs its TrustZone app, which this
+    unit's TZ doesn't provide (the TZ modules are set aside). `gatekeeperd` blocked forever in
+    `IGatekeeper::getService()` ("Waited one second ... Waiting another", every second) and never registered
+    its service, so LockSettings had no gatekeeper. Dropping only the manifest entry is not enough: libhidl
+    then loads the passthrough `android.hardware.gatekeeper@1.0-impl`, which aborts ("Unable to open
+    GateKeeper HAL"). With the entry and `product/gatekeeper.mk` (impl + service) removed, `gatekeeperd`
+    falls back to AOSP's software GateKeeper; set/verify/clear PIN works. On an existing install: remove the
+    `<hal>` block from `/vendor/manifest.xml` and `/vendor/lib{,64}/hw/android.hardware.gatekeeper@1.0-impl.so`.
+46. **Phantom fingerprint support**: Huawei's shared vendor set ships `android.hardware.fingerprint.xml`
+    though the T3 10 has no sensor, so FingerprintService kept looking for a HAL. Not shipped any more
+    (`device/vendor-blobs.md`).
 
 ## Build & flash (outline)
 
