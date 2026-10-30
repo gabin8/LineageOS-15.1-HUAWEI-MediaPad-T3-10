@@ -1,0 +1,7 @@
+# Signing keys never belong in this repo (they live in ~/.android-certs, outside it)
+*.pk8
+*.p12
+*.jks
+*.keystore
+*.pem
+.android-certs/
