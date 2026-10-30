@@ -19,13 +19,6 @@ on fs
     write /dev/cpuset/system-background/mems 0
     write /dev/cpuset/top-app/cpus 0-3
     write /dev/cpuset/top-app/mems 0
-service bootlog /system/bin/logcat -b all -v threadtime -f /cache/bootlog.txt
-    class core
-    user root
-    group root system log readproc
-    disabled
-on boot
-    start bootlog
 
 # Generic light@2.0 HAL (replaces aw2013 variant which opens a nonexistent /sys/class/leds/blue)
 service light-hal-2-0 /vendor/bin/hw/android.hardware.light@2.0-service

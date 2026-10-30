@@ -41,3 +41,6 @@ ro.bootimage.build.date.utc=1793234105
 ro.bootimage.build.fingerprint=HUAWEI/AGSEEA/HWAGS-Q:8.0.0/HUAWEIAGS-W09/150(C431):user/release-keys
 persist.sys.usb.config=adb
 ro.zygote=zygote64_32
+# logd.klogd spins at 100% CPU on this kernel (dmesg still has the kernel log). Must be
+# set before logd starts, so it lives here rather than in /system/build.prop.
+ro.logd.kernel=false
