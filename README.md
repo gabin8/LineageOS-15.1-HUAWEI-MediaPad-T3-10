@@ -41,7 +41,7 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | **Audio**: real Qualcomm HAL — speaker playback + built-in mics (recording 16/44.1/48 kHz, mono/stereo) | ✅ |
 | Thermal mitigation (`thermal-engine`), `time_daemon` | ✅ |
 | Hardware video decoder (Venus/OMX) | ⚠️ initialises now (device permissions fixed); playback not verified |
-| Camera | 🔄 HAL3 opens both cameras without crashes; **preview black / no photo** (VFE delivers almost no frames) |
+| **Camera**: rear 5 MP (s5k5e8, autofocus, factory OTP calibration) + front 2 MP (sp2509v) — preview and photos, stock EMUI 8 camera stack | ✅ |
 | Bluetooth | ❓ not brought up (`hciattach` from the vendor rc not ported) |
 | **WiFi** (WCN3660B / pronto, prima built into the kernel): scan + connect, 2.4 + 5 GHz | ✅ |
 | WiFi hotspot | ❓ untested (builtin prima ignores `fwpath`; AP mode needs `con_mode`) |
@@ -216,22 +216,38 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     log tool; not on stock Oreo; NPE-crashes at boot without DIAG), Wi-Fi calling (ims, imssettings), LTE
     broadcast (embms), RIL tunnel, AT forwarding, data port mapper: disabled on device
     (`vendor/disable-incompatible-qc-apps.sh`) and removed from the vendor `PRODUCT_PACKAGES`.
-33. **Camera (in progress)** — the Huawei HAL (`camera.msm8937.so`, Nougat-era) needed:
-    a shim for the pre-8.1 `DisplayEventReceiver()` ctor and Huawei's `isLogEnabled()` plus a preloaded
-    `libsensor.so` (SensorManager moved out of libgui in O) → `device/libshims`; a device copy of the
-    provider service on **`/dev/binder`** (AOSP uses `/dev/vndbinder`, where SurfaceFlinger and the sensor
-    service don't exist, so the HAL waited forever) → `device/camera-provider`; and **HAL3**
-    (`persist.camera.HAL3.enabled=1`, as stock — the inherited `=0` puts it in HAL1 mode, where the HAL
-    passes a non-`CameraDevice` cookie to 8.1's `sGetMemory` and crashes; `libshim_camera` now refuses
-    the HAL1 open, so apps fall back to HAL3). The camera userspace is **stock 7.0** while gralloc and
-    the GPU blobs are **O** (gralloc1): the HAL reads `private_handle_t` size/offset at +28/+32, which
-    gralloc1 uses for width/height (a 640x480 buffer registered as "size 640") → `libshim_camera`
-    hands the HAL old-layout copies of each handle (`camera_gralloc_shim.cpp`). With that, HAL3
-    open/configure/requests/metadata work and nothing crashes, but **the VFE outputs almost no image
-    buffers** (`msm_vfe40_reset_hardware: reset timeout`, camif errors; ~0.5 fps back, 0 front) — a
-    kernel/ISP mismatch below the HAL. Stock Oreo's vendor has a complete matching camera stack
-    (HAL, daemon, libmmcamera2, chromatix) — the likely next step. Wart: the HAL looks up
-    `display.qservice` (vndbinder) on open/close and waits ~4 s for it.
+33. **Camera: stock EMUI 8.0 (Oreo) camera stack on an Oreo-era kernel driver.** The Nougat (7.0)
+    camera userspace never got frames (the HAL needed gralloc/`DisplayEventReceiver` shims and still
+    received ~0 fps). Stock Oreo's vendor camera stack works, once the pieces below it match:
+    - **Kernel camera UAPI** (`kernel/oreo-camera-v2.patch`). The Oreo daemon is built against the
+      Oreo-era `camera_v2` interface: `SUB_MODULE_MAX` 14 (IR LED / IR cut added), so
+      `VIDIOC_MSM_SENSOR_INIT_CFG` / `VIDIOC_MSM_SENSOR_CFG` are 204/168 bytes instead of 188/152,
+      plus changed ISP/CPP ioctls. With the Nougat driver every probe ioctl hit `default:`, so no
+      sensor probed and Huawei's product-name query came back empty (`camera_config_.xml`). The patch
+      replaces `drivers/media/platform/msm/camera_v2` and the camera UAPI headers with Huawei's Oreo
+      driver from the LDN (Y7 Prime 2018, msm8937) kernel. The stock AGS Oreo kernel is the same
+      unified Huawei msm89xx build. On top of that it ports back Huawei's AGS in-kernel **sensor OTP**
+      readers (`sensor_otp_ags_s5k5e8.c`, `…hi553.c`, …) and their `CFG_GET_OTP_FLAG` /
+      `CFG_SET_{AFC,AWB,LSC}_OTP_INFO` handlers. Without them the daemon's AF calibration fails and
+      init aborts. Every ioctl number the Oreo libs use was checked against the new headers
+      (compiled for 32-bit ARM). Camera debug logging is off in the defconfig, as on stock.
+    - **Oreo blobs** in place of Nougat's (`vendor/oreo-camera/`, see `device/vendor-blobs.md`).
+    - **CPP firmware** in `/vendor/firmware`: the vendor list installed it to `/vendor/etc/firmware`,
+      which ueventd never searches (`cpp_firmware_v1_5_0.fw … could not find firmware`). Without it
+      CPP doesn't initialise and the ISP can't map the streams.
+    - **Provider back on `/dev/vndbinder`** (stock AOSP service; the Oreo HAL has no SurfaceFlinger or
+      sensor-service dependency). The HAL looks up `display.qservice`, which lives there; on
+      `/dev/binder` every camera open waited 4 s for it. Open now takes 190 ms.
+    - `/data/vendor/camera` (daemon sockets, AEC/banding data) created by the ramdisk;
+      `persist.vendor.camera.HAL3.enabled=1` and `perflock.enable=0`, since Oreo reads
+      `persist.vendor.camera.*` and there is no perf daemon.
+    - `vendor/patch-camera-blobs.sh`: a 2-byte patch removing the iface module's per-frame
+      `SOF event frame_id …` ERROR log (~10-30 lines/s whenever a camera runs). Huawei's
+      `init.huawei.camera.rc` is dropped (it only starts the absent `HwServiceHost`).
+    Remaining daemon messages match stock: optional libs stock doesn't ship either (`sw_tnr`,
+    `ppeiscore`, `llvd_smore`), no hardware face-detect node, the camkit XML probe falling back to the
+    legacy config, Huawei's ERROR-level `Enter/Exit` and `PROFILE_*` traces. Image tuning is Huawei's
+    own chromatix for these modules. Snap (API1/HAL1 by default) previews and shoots on both cameras.
 
 ### Kernel stability
 34. **Kernel oops → watchdog reboot on WiFi resume** (`kernel/prima-mdns-filter-oops.patch`). Huawei's
@@ -249,7 +265,7 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
 
 ```bash
 # 1. Kernel: drop kernel/binder/* into drivers/staging/android/, set the binder devices config,
-#    apply kernel/prima-mdns-filter-oops.patch,
+#    apply kernel/prima-mdns-filter-oops.patch and kernel/oreo-camera-v2.patch,
 #    (optionally) apply kernel/ambient-caps-3.18.patch, build Image.gz (GCC 4.9 aarch64).
 # 2. DTB:  python3 scripts/patch_dtb.py <dtb> <out.dtb> --ramoops
 # 3. Ramdisk: apply ramdisk/* (init.rc charger patch; init.qcom.rc, init.usb.rc, default.prop,
@@ -269,16 +285,16 @@ adb shell 'sh /data/local/tmp/remove-qcom-diag-gid.sh; sh /data/local/tmp/disabl
 #     all built from AOSP; see fixes 10 & 13.)
 adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/local/tmp/apply-buildprop-fixes.sh
 #    shims (device/libshims, built with the tree) → /vendor/lib{,64}; replace
-#    /vendor/etc/init/android.hardware.sensors@1.0-service.rc with vendor/sensors/'s copy; install the
-#    device camera provider (device/camera-provider) and move unwanted rc files to /vendor/etc/init-disabled.
+#    /vendor/etc/init/android.hardware.sensors@1.0-service.rc with vendor/sensors/'s copy and move
+#    unwanted rc files to /vendor/etc/init-disabled.
 # For a reproducible build: apply device/device-tree.patch, add device/liblight and device/configs to the device tree,
-# drop the lights blob (device/vendor-blobs.md), fold 11-15 into the vendor image, and apply 16.
+# drop the lights blob and swap in the Oreo camera blobs (device/vendor-blobs.md), fold 11-15 into
+# the vendor image, and apply 16.
 ```
 
 ## Remaining work (help wanted)
 - **WiFi hotspot:** untested; `WCNSS_qcom_cfg_ags.ini` (the Huawei per-device variant) vs the generic
   `WCNSS_qcom_cfg.ini` currently used is worth comparing.
-- **Camera preview** (item 33): try the stock Oreo camera stack, which matches this kernel and gralloc.
 - **Release-key signing**: the build uses AOSP test keys (Trust warns "signed with public keys").
 - **SELinux enforcing**: still permissive; needs policy for the added services and stock blobs.
 - **Bluetooth**, **GPS**: not brought up.
@@ -286,5 +302,6 @@ adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/
 
 ## Credits & license
 Built on the GPLv2 Linux kernel and the clienthax and LineageOS sources; the ambient-caps patch is
-upstream (Andy Lutomirski, v4.3). Shared in the same spirit — use at your own risk, no warranty.
+upstream (Andy Lutomirski, v4.3); the Oreo camera driver comes from Huawei's GPL release as published
+in [adeii/huawei-london-kernel](https://github.com/adeii/huawei-london-kernel) (commit d6d5b83). Shared in the same spirit — use at your own risk, no warranty.
 Flashing firmware can brick your device.
