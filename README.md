@@ -379,6 +379,12 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     while the HAL stream is still in standby; CAF's HAL returns `-ENODATA` then, which the HIDL wrapper
     already ignores, but Huawei's blob returns `-1`. Same `INVALID_STATE` result either way (steady playback
     never fails), so the wrapper now ignores `EPERM` too.
+44. **Stale JIT profiles after re-flashing system** (`zygote64: Checksum mismatch for dex SystemUI.apk`,
+    about once a minute). The build keeps Huawei's stock `ro.build.fingerprint`, so Android never sees an
+    upgrade and keeps the old profiles of apps whose code changed. ART then refuses to merge new samples
+    (dex checksum differs), so the profile never updates and background dexopt can't precompile those apps'
+    hot code. After flashing a changed system, reset them: `adb shell cmd package compile --reset -a` (or per
+    package). Found on Settings, SystemUI, Eleven, Jelly and LineageParts.
 
 ## Build & flash (outline)
 
@@ -397,6 +403,8 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
 #    *_contexts built from the tree (mka selinux_policy nonplat_property_contexts ...).
 # 5. Flash userspace, keep stock boot on the partition, RAM-boot the signed image:
 fastboot flash system system.img && fastboot flash vendor vendor.img
+#    Re-flashing system over an existing install: afterwards run
+#    adb shell cmd package compile --reset -a     (see fix 44 - stale JIT profiles)
 fastboot flash boot <stock boot.bin>          # safe partition — do NOT flash the custom image
 fastboot boot boot.img                          # RAM-boot (the ONLY path that works for our bad-sig img)
 # 6. On device (adb, main-boot serial 0123456789ABCDEF), apply the /vendor fixes once:
