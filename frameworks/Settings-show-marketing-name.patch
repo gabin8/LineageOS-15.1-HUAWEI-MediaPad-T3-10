@@ -1,0 +1,23 @@
+diff --git a/src/com/android/settings/deviceinfo/DeviceModelPreferenceController.java b/src/com/android/settings/deviceinfo/DeviceModelPreferenceController.java
+index f1dc415..db04dc5 100644
+--- a/src/com/android/settings/deviceinfo/DeviceModelPreferenceController.java
++++ b/src/com/android/settings/deviceinfo/DeviceModelPreferenceController.java
+@@ -18,6 +18,7 @@ package com.android.settings.deviceinfo;
+ import android.app.Fragment;
+ import android.content.Context;
+ import android.os.Build;
++import android.os.SystemProperties;
+ import android.support.v7.preference.Preference;
+ import android.support.v7.preference.PreferenceScreen;
+ import android.text.TextUtils;
+@@ -68,6 +69,9 @@ public class DeviceModelPreferenceController extends AbstractPreferenceControlle
+     }
+ 
+     public static String getDeviceModel() {
+-        return Build.MODEL + DeviceInfoUtils.getMsvSuffix();
++        final String model = Build.MODEL + DeviceInfoUtils.getMsvSuffix();
++        // Vendor marketing name (e.g. Huawei's ro.config.marketing_name), shown with the model
++        final String marketingName = SystemProperties.get("ro.config.marketing_name");
++        return TextUtils.isEmpty(marketingName) ? model : marketingName + " (" + model + ")";
+     }
+ }
