@@ -28,6 +28,7 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | Kernel, SMP, memory, mounts (`/system` `/vendor` `/data` `/cache` via ramdisk `mount_all`) | ✅ |
 | Android init, properties, HIDL/binder, HALs register | ✅ |
 | **SELinux enforcing**: no denials in a boot + camera/audio/WiFi/sensors/browser run | ✅ |
+| **Signed with private release keys** (no Trust "public keys" warning) | ✅ |
 | **Display panel** (BOE NT51017 9.6" 800p via lcdkit) + HWComposer/SurfaceFlinger, GPU composition (no flicker) | ✅ |
 | **Live adb in the main boot** (FunctionFS gadget) | ✅ |
 | **Full boot:** zygote → SystemUI → setup wizard / Trebuchet launcher | ✅ |
@@ -315,6 +316,27 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
       `com.qualcomm.timeservice` (runs as `system_app`). Apps enumerating properties (Chromium) are
       `dontaudit`ed.
 
+36. **Release keys.** The build was signed with AOSP's *test* keys, whose private halves are public, so
+    anyone could sign an app the system trusts as `android.uid.system`. LineageOS Trust warns about that
+    ("This build was signed with public keys"; it checks `ro.build.tags`). The fix is your own keys, not
+    a different tag:
+    - Make `releasekey`, `platform`, `shared` and `media` once with AOSP's `development/tools/make_key`
+      into `~/.android-certs` (0700, outside every repo; this repo also `.gitignore`s key files, and
+      local pre-commit/pre-push hooks refuse them). Back them up. If they're lost, the next build can't
+      update an installed system without migrating again.
+    - `mka target-files-package` (run `make installclean` first, or files the tree dropped stay in
+      `out/` and `vendor.img` overflows its 736 MB partition), then `scripts/sign-build.sh <root>`
+      (`sign_target_files_apks` + `img_from_target_files`). The tags become `release-keys`.
+    - **Keep your apps and data:** installed packages remember the test certificates in
+      `/data/system/packages.xml`, and shared-UID system apps would fail to load. With the framework
+      stopped (`adb shell stop`), `scripts/migrate-package-certs.py` swaps the four certificates
+      (testkey→releasekey, platform, shared, media). Also remove `/data/system/package_cache`, then
+      flash `system`.
+    - Done here with `system` only: this unit's `/vendor` still differs from the tree (stock Oreo
+      graphics/audio blobs, disabled TrustZone modules, …; see Remaining work). So its 11 vendor APKs
+      were replaced by the signed ones from the build, and the 8 Qualcomm apps the tree no longer ships
+      were removed. Only AOSP's presigned, permission-less CTS shims keep a test signature.
+
 ## Build & flash (outline)
 
 > Assumes the clienthax LineageOS 15.1 tree builds for you and you have the engineering bootloader.
@@ -354,9 +376,12 @@ adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/
 ## Remaining work (help wanted)
 - **WiFi hotspot:** untested; `WCNSS_qcom_cfg_ags.ini` (the Huawei per-device variant) vs the generic
   `WCNSS_qcom_cfg.ini` currently used is worth comparing.
-- **Release-key signing**: the build uses AOSP test keys (Trust warns "signed with public keys").
 - **Bluetooth**, **GPS**: not brought up.
-- Make all the on-device fixes part of the vendor/system image for a one-shot flash.
+- Make all the on-device fixes part of the vendor/system image for a one-shot flash. `/vendor` on this unit still
+  differs from a tree build: stock Oreo GPU/display/audio blobs, removed TrustZone `gatekeeper`/`keystore` modules,
+  the generic light + GNSS stub HALs, Adreno firmware in `/vendor/firmware`, a hand-edited `build.prop`.
+- Eleven (music app) ANRs when a media key starts its service with nothing queued
+  (`startForegroundService()` without `startForeground()`).
 
 ## Credits & license
 Built on the GPLv2 Linux kernel and the clienthax and LineageOS sources; the ambient-caps patch is
