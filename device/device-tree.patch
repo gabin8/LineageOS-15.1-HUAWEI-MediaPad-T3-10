@@ -203,6 +203,30 @@ index 4f07903..6fea0a8 100644
      sdm.debug.disable_rotator_split=1 \
      sdm.debug.disable_skip_validate=1 \
      sdm.perf_hint_window=50 \
+diff --git a/product/media.mk b/product/media.mk
+index a60581a..c620ddc 100644
+--- a/product/media.mk
++++ b/product/media.mk
+@@ -12,16 +12,9 @@ PRODUCT_COPY_FILES += \
+     frameworks/av/media/libstagefright/data/media_codecs_google_telephony.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_codecs_google_telephony.xml \
+     frameworks/av/media/libstagefright/data/media_codecs_google_video.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_codecs_google_video.xml
+ 
+-# Media
+-PRODUCT_PACKAGES += \
+-    libOmxAacEnc \
+-    libOmxAmrEnc \
+-    libOmxCore \
+-    libOmxEvrcEnc \
+-    libOmxQcelp13Enc \
+-    libOmxVdec \
+-    libOmxVenc \
+-    libstagefrighthw
++# Media: Qualcomm OMX (libOmx*, libstagefrighthw, libhypv_intercept) comes from the stock EMUI 8
++# vendor blobs, matching the stock Oreo gralloc this port uses (see vendor-blobs.md), not from
++# hardware/qcom/media-caf.
+ 
+ # Properties
+ PRODUCT_PROPERTY_OVERRIDES += \
 diff --git a/product/radio.mk b/product/radio.mk
 index f587f99..3bb2fe8 100644
 --- a/product/radio.mk
@@ -216,3 +240,51 @@ index f587f99..3bb2fe8 100644
      frameworks/native/data/etc/android.software.sip.voip.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.sip.voip.xml
  
  PRODUCT_PACKAGES += \
+diff --git a/sepolicy/device.te b/sepolicy/device.te
+index d580073..500c56a 100644
+--- a/sepolicy/device.te
++++ b/sepolicy/device.te
+@@ -1 +1,5 @@
+ type lirc_device, dev_type;
++type vendor_block_device, dev_type;
++type oeminfo_block_device, dev_type;
++# Huawei kernel log nodes (/dev/hwlog_*), opened by the kernel's own log workers
++type hwlog_device, dev_type;
+diff --git a/sepolicy/file_contexts b/sepolicy/file_contexts
+index 3b9210d..ef6e8ac 100644
+--- a/sepolicy/file_contexts
++++ b/sepolicy/file_contexts
+@@ -13,3 +13,19 @@
+ 
+ # Light HAL
+ /(vendor|system/vendor)/bin/hw/android\.hardware\.light@2\.0-service\.xiaomi_8917 u:object_r:hal_light_default_exec:s0
++
++# Partitions: by-name links under the platform path, and under bootdevice once
++# androidboot.bootdevice is on the kernel cmdline
++/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/system	u:object_r:system_block_device:s0
++/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/vendor	u:object_r:vendor_block_device:s0
++/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/userdata	u:object_r:userdata_block_device:s0
++/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/cache	u:object_r:cache_block_device:s0
++/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/persist	u:object_r:persist_block_device:s0
++/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/misc	u:object_r:misc_block_device:s0
++/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/boot	u:object_r:boot_block_device:s0
++/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/recovery	u:object_r:recovery_block_device:s0
++/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/modem	u:object_r:modem_block_device:s0
++/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/oeminfo	u:object_r:oeminfo_block_device:s0
++
++# Huawei kernel log nodes
++/dev/hwlog_[a-z]+				u:object_r:hwlog_device:s0
+diff --git a/sepolicy/fsck.te b/sepolicy/fsck.te
+index 1500b5f..2676d21 100644
+--- a/sepolicy/fsck.te
++++ b/sepolicy/fsck.te
+@@ -1 +1,2 @@
+ allow fsck persist_block_device:blk_file rw_file_perms;
++allow fsck vendor_block_device:blk_file rw_file_perms;
+diff --git a/sepolicy/system_server.te b/sepolicy/system_server.te
+index 9e71316..fe227b4 100644
+--- a/sepolicy/system_server.te
++++ b/sepolicy/system_server.te
+@@ -1 +1,2 @@
+ allow system_server lirc_device:chr_file rw_file_perms;
++get_prop(system_server, camera_prop)

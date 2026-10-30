@@ -1,0 +1,34 @@
+diff --git a/src/org/lineageos/eleven/MusicPlaybackService.java b/src/org/lineageos/eleven/MusicPlaybackService.java
+index 3283f0a..6c68ec4 100644
+--- a/src/org/lineageos/eleven/MusicPlaybackService.java
++++ b/src/org/lineageos/eleven/MusicPlaybackService.java
+@@ -832,6 +832,17 @@ public class MusicPlaybackService extends Service {
+         if (D) Log.d(TAG, "Got new intent " + intent + ", startId = " + startId);
+         mServiceStartId = startId;
+ 
++        // MediaButtonIntentReceiver starts us with startForegroundService(), which requires a
++        // startForeground() call within 5 s even if the command (pause/stop with nothing playing)
++        // doesn't start playback, and before the service stops itself. Enter the foreground right
++        // away and leave it again below unless playback put us there; otherwise the system kills
++        // the service with an ANR / RemoteServiceException.
++        final boolean fromMediaButton = intent != null
++                && intent.getBooleanExtra(FROM_MEDIA_BUTTON, false);
++        if (fromMediaButton && mNotifyMode != NOTIFY_MODE_FOREGROUND) {
++            startForeground(hashCode(), buildNotification());
++        }
++
+         if (intent != null) {
+             final String action = intent.getAction();
+ 
+@@ -848,7 +859,10 @@ public class MusicPlaybackService extends Service {
+         // just started but not bound to and nothing is playing
+         scheduleDelayedShutdown();
+ 
+-        if (intent != null && intent.getBooleanExtra(FROM_MEDIA_BUTTON, false)) {
++        if (fromMediaButton) {
++            if (mNotifyMode != NOTIFY_MODE_FOREGROUND) {
++                stopForeground(mNotifyMode == NOTIFY_MODE_NONE);
++            }
+             MediaButtonIntentReceiver.completeWakefulIntent(intent);
+         }
+ 
