@@ -212,7 +212,7 @@ index b68f62a..6ccbd3f 100644
      <!-- Hardware keys present on the device with the ability to wake, stored as a bit field.
           This integer should equal the sum of the corresponding value for each
 diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
-index 9d62e79..f6ab4d7 100644
+index 9d62e79..4879dcf 100644
 --- a/overlay/frameworks/base/core/res/res/values/config.xml
 +++ b/overlay/frameworks/base/core/res/res/values/config.xml
 @@ -22,7 +22,8 @@
@@ -225,7 +225,40 @@ index 9d62e79..f6ab4d7 100644
  
      <!-- Array of light sensor LUX values to define our levels for auto backlight brightness support.
           The N entries of this array define N + 1 control points as follows:
-@@ -333,4 +334,10 @@
+@@ -201,15 +202,16 @@
+     <bool name="config_hotswapCapable">true</bool>
+ 
+     <!-- Flag specifying whether VoLTE is available on device -->
+-    <bool name="config_device_volte_available">true</bool>
++    <!-- Wi-Fi only: no VoLTE, video calling or IMS -->
++    <bool name="config_device_volte_available">false</bool>
+ 
+     <!-- Flag specifying whether VoLTE should be available for carrier: independent of
+          carrier provisioning. If false: hard disabled. If true: then depends on carrier
+          provisioning, availability etc -->
+-    <bool name="config_carrier_volte_available">true</bool>
++    <bool name="config_carrier_volte_available">false</bool>
+ 
+     <!-- Flag specifying whether VoLTE is available on device -->
+-    <bool name="config_device_vt_available">true</bool>
++    <bool name="config_device_vt_available">false</bool>
+ 
+     <!-- Config determines whether to update phone object when voice registration
+          state changes. Voice radio tech change will always trigger an update of
+@@ -316,10 +318,10 @@
+     <bool name="config_enableWifiDisplay">true</bool>
+ 
+     <!-- ImsService package name to bind to by default, if config_dynamic_bind_ims is true -->
+-    <string name="config_ims_package">org.codeaurora.ims</string>
++    <string name="config_ims_package"></string>
+ 
+     <!-- Flag specifying whether or not IMS will use the ImsResolver dynamically -->
+-    <bool name="config_dynamic_bind_ims">true</bool>
++    <bool name="config_dynamic_bind_ims">false</bool>
+ 
+      <!-- Boolean indicating if current platform supports HFP inband ringing -->
+      <bool name="config_bluetooth_hfp_inband_ringing_support">true</bool>
+@@ -333,4 +335,10 @@
  
      <!-- Whether device supports double tap to wake -->
      <bool name="config_supportDoubleTapWake">true</bool>
@@ -248,9 +281,17 @@ index 86e7580..5416d29 100644
 +    <bool name="def_screen_brightness_automatic_mode">false</bool>
  </resources>
 diff --git a/product/camera.mk b/product/camera.mk
-index 308e057..d1568a6 100644
+index 308e057..ba2814d 100644
 --- a/product/camera.mk
 +++ b/product/camera.mk
+@@ -1,6 +1,6 @@
+ # Permissions
+ PRODUCT_COPY_FILES += \
+-    frameworks/native/data/etc/android.hardware.camera.flash-autofocus.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.flash-autofocus.xml \
++    frameworks/native/data/etc/android.hardware.camera.autofocus.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.autofocus.xml \
+     frameworks/native/data/etc/android.hardware.camera.front.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.front.xml \
+     frameworks/native/data/etc/android.hardware.camera.full.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.full.xml \
+     frameworks/native/data/etc/android.hardware.camera.raw.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.raw.xml
 @@ -29,7 +29,6 @@ PRODUCT_PROPERTY_OVERRIDES += \
      camera.display.lmax=1280x720 \
      camera.hal1.packagelist=com.skype.raider,com.google.android.talk \
@@ -331,10 +372,10 @@ index a60581a..c620ddc 100644
  # Properties
  PRODUCT_PROPERTY_OVERRIDES += \
 diff --git a/product/radio.mk b/product/radio.mk
-index f587f99..3bb2fe8 100644
+index f587f99..2bd56ac 100644
 --- a/product/radio.mk
 +++ b/product/radio.mk
-@@ -4,8 +4,6 @@ PRODUCT_COPY_FILES += \
+@@ -4,47 +4,15 @@ PRODUCT_COPY_FILES += \
  
  # Permissions
  PRODUCT_COPY_FILES += \
@@ -342,6 +383,47 @@ index f587f99..3bb2fe8 100644
 -    frameworks/native/data/etc/android.hardware.telephony.cdma.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.telephony.cdma.xml \
      frameworks/native/data/etc/android.software.sip.voip.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.sip.voip.xml
  
+ PRODUCT_PACKAGES += \
+     libjson
+ 
+-# Properties
++# Properties (Wi-Fi only: one dormant phone, no IMS/VoLTE/VT/WFC overrides, no RIL)
+ PRODUCT_PROPERTY_OVERRIDES += \
+     DEVICE_PROVISIONED=1 \
+-    persist.data.iwlan.enable=true \
+-    persist.data.mode=concurrent \
+-    persist.data.netmgrd.qos.enable=true \
+-    persist.dbg.volte_avail_ovr=1 \
+-    persist.dbg.ims_volte_enable=1 \
+-    persist.dbg.wfc_avail_ovr=1 \
+-    persist.radio.calls.on.ims=true \
+-    persist.radio.csvt.enabled=false \
+-    persist.radio.jbims=0 \
+-    persist.dbg.vt_avail_ovr=1 \
+-    persist.radio.DROPSETENABLE=1 \
+-    persist.radio.aosp_usr_pref_sel=true \
+-    persist.radio.apm_sim_not_pwdn=1 \
+-    persist.vendor.radio.custom_ecc=1 \
+-    persist.radio.force_on_dc=true \
+-    persist.radio.ignore_dom_time=5 \
+-    persist.radio.mt_sms_ack=20 \
+-    persist.radio.multisim.config=dsds \
+-    persist.radio.VT_CAM_INTERFACE=2 \
+-    persist.radio.VT_ENABLE=1 \
+-    persist.radio.VT_HYBRID_ENABLE=1 \
+-    persist.vendor.radio.rat_on=combine \
+-    persist.vendor.radio.sib16_support=1 \
+-    ril.ecclist=100,101,102,108,112 \
+-    ril.subscription.types=NV,RUIM \
+-    rild.libpath=/vendor/lib64/libril-qc-qmi-1.so \
+-    ro.telephony.call_ring.multiple=false \
+-    ro.telephony.default_network=22,20 \
+-    ro.use_data_netmgrd=true \
+-    service.qti.ims.enabled=1 \
+-    telephony.lteOnCdmaDevice=1
++    persist.radio.multisim.config=ssss
+ 
+ # Radio
  PRODUCT_PACKAGES += \
 diff --git a/sepolicy/device.te b/sepolicy/device.te
 index d580073..500c56a 100644

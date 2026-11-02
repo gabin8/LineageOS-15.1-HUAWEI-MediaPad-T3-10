@@ -441,6 +441,20 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     since the daemon can also write oeminfo). It expects `/dev/block/bootdevice`, which ueventd never creates
     on 3.18 (`/devices/soc/...`), so init links it. Result: `load_acc_oeminf_data x_offset:-0.015317
     y_offset:-0.031746 z_offset:0.999460`.
+52. **Phone-service leftovers on a Wi-Fi-only tablet** (`device/device-tree.patch`: `product/radio.mk`, framework
+    overlay). The device tree carried a phone's radio setup: `persist.radio.multisim.config=dsds` (two phantom
+    phones), forced IMS/VoLTE/video-call/Wi-Fi-calling overrides (`persist.dbg.*_ovr`), the RIL library path and
+    LTE/CDMA defaults, plus overlay values declaring VoLTE/VT hardware and dynamic IMS binding to
+    `org.codeaurora.ims` (not installed). With dynamic binding Android creates the IMS phone without waiting
+    for a service, so it retried `getImsService` forever (~50 log lines per boot). Now: `ssss` (one dormant
+    phone, the minimum the phone app needs: `PhoneFactory` reads `sPhones[0]`), no radio/IMS props, AOSP's
+    IMS defaults (`config_dynamic_bind_ims=false`, empty `config_ims_package`, VoLTE/VT unavailable).
+    `ro.radio.noril=true` was already set. Stock's own AGS-W09 `local.prop` sets no multi-SIM or IMS props.
+53. **Flashlight tile with no flash** (`product/camera.mk`). The T3 10 has no camera flash LED (both cameras
+    report `android.flash.info.available = FALSE`), but the tree declared `android.hardware.camera.flash` via
+    `android.hardware.camera.flash-autofocus.xml`; SystemUI's flashlight tile checks that feature, so it showed
+    a dead tile. Now `android.hardware.camera.autofocus.xml`. (Battery saver greys out only while charging,
+    as on any Android 8.1 device.)
 
 ## Build & flash (outline)
 
