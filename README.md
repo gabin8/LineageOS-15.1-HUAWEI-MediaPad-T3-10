@@ -111,8 +111,9 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     test at 16/44.1/48 kHz, mono and stereo). The real HAL needs the ADSP booted (item 24) so the
     `msm8952-snd-card-mtp` card exists. (Also needed: the built `consumerir.default.so` and the `gnss@1.0`
     service on `/vendor` so IConsumerIr/IGnss register — system_server hard-blocks on them here.)
-14. **`gpio-keys.kl`** → `/vendor/usr/keylayout/` — the power key (code 116) falls back to `Generic.kl`
-    with no `WAKE` flag, so the button can't wake from doze. This adds `key 116 POWER WAKE`.
+14. ~~`gpio-keys.kl`~~ (removed 2026-11-02). It mapped power/volume-down onto `gpio-keys`, but on this board
+    POWER and VOLUME_DOWN come from the PMIC (`qpnp_pon`) and `gpio-keys` only has VOLUME_UP; Android used
+    `Generic.kl` for both devices anyway, so the file never applied.
 15. **`ro.sys.sdcardfs=false`** (in `/vendor/build.prop`) — the kernel's sdcardfs 2.1.3 rejects the 8.1
     sdcard daemon's mount options (`derive_gid`) → vold hangs "Waiting for FUSE to spin up". Force FUSE
     (the kernel has it) and vold's storage scan completes.
@@ -492,7 +493,6 @@ fastboot flash boot <stock boot.bin>          # safe partition — do NOT flash 
 fastboot boot boot.img                          # RAM-boot (the ONLY path that works for our bad-sig img)
 # 6. On device (adb, main-boot serial 0123456789ABCDEF), apply the /vendor fixes once:
 adb shell 'mount -o rw,remount /vendor'
-adb push vendor/gpio-keys.kl /vendor/usr/keylayout/gpio-keys.kl
 adb push vendor/audio_policy_configuration.xml /vendor/etc/audio_policy_configuration.xml
 adb push vendor/remove-qcom-diag-gid.sh vendor/disable-incompatible-qc-apps.sh /data/local/tmp/
 adb shell 'sh /data/local/tmp/remove-qcom-diag-gid.sh; sh /data/local/tmp/disable-incompatible-qc-apps.sh'

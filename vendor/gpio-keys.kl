@@ -1,3 +1,0 @@
-# AGS-W09 gpio-keys: power + volume-down. POWER must carry WAKE to resume from doze/sleep.
-key 114   VOLUME_DOWN
-key 116   POWER             WAKE
