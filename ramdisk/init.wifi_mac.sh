@@ -1,17 +1,4 @@
 #!/system/bin/sh
-# /init.wifi_mac.sh -- print this unit's factory WiFi MAC (XX:XX:XX:XX:XX:XX).
-# Source: oeminfo record id 0x34, exactly as stock hw_wifi_get_mac() reads it
-# (EMUI vendor libhardware_legacy.so / lib_hw_wifi_chipset_qcom.so):
-# rmt_oeminfo_read(0x34, 256) -> RSA-2048 public decrypt (PKCS#1 v1.5 type 1,
-# e=65537, Huawei key "publicKey_8f04") -> 12-byte plaintext; MAC = pt[5..0]
-# (stored byte-reversed).
-# oeminfo layout: 4K slot per id at (id-1)*0x1000 in bank A (0) or bank B
-# (0x2000000); header "OEM_INFO", u32 ver=6, id, type, len, age; payload at +0x200.
-# The RSA step takes ~40 s in awk, so the result is cached keyed by the record's
-# sha256; later boots are instant. Prints nothing / exits 1 on any failure.
-# NB: LOS 15.1 /system/bin/awk (20121220) has a broken opcode table: substr(),
-# function return, unary minus and '!' crash or misbehave. The awk below uses
-# none of them -- keep it that way when editing.
 OI=${1:-/dev/block/platform/soc/7824900.sdhci/by-name/oeminfo}
 CACHE=${2:-/data/misc/wifi/oeminfo_wifimac}
 best=; bestage=-1

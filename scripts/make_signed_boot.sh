@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Package a signed boot.img for the AGS-W09 engineering aboot.
-#   usage: make_signed_boot.sh <kernelblob> <ramdisk> <out.img> "<cmdline>"
+#   usage: STOCK_BOOT=<stock boot.bin> make_signed_boot.sh <kernelblob> <ramdisk> <out.img> "<cmdline>"
 # kernelblob = Image.gz + ONE appended DTB whose qcom,board-id = 0x1000b (so the eng
 # aboot's libfdt selector picks it) and msm-id triple 0x12f/0x134/0x135.
 # Appends the GENUINE stock /boot signature at the image's image_actual so the locked
@@ -8,7 +8,7 @@
 set -euo pipefail
 KBLOB="${1:?kernelblob}"; RD="${2:?ramdisk}"; OUT="${3:?out.img}"
 CMDLINE="${4:-androidboot.hardware=qcom androidboot.selinux=permissive console=tty0 earlycon ignore_loglevel}"
-STOCK=$HOME/huawei_ags_w09/backup_agsw09/boot.bin
+STOCK="${STOCK_BOOT:?set STOCK_BOOT to your dump of the stock boot partition}"
 MKBOOT=$(command -v mkbootimg || echo /usr/bin/mkbootimg)
 
 "$MKBOOT" --kernel "$KBLOB" --ramdisk "$RD" \

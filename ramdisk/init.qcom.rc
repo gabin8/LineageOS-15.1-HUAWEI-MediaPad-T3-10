@@ -26,7 +26,6 @@ service light-hal-2-0 /vendor/bin/hw/android.hardware.light@2.0-service
     user system
     group system
 
-# WCNSS/WiFi bring-up (late, after the boot-time adsp/modem PIL attempts)
 service wifi-bringup /system/bin/sh /init.wifi.sh
     class late_start
     user root
@@ -34,8 +33,6 @@ service wifi-bringup /system/bin/sh /init.wifi.sh
     seclabel u:r:wifi_bringup:s0
     oneshot
 
-# WiFi framework plumbing from /vendor/etc/init/hw/init.qcom.rc (not parsed on this
-# build: /vendor is mounted after init reads its .rc files)
 on post-fs-data
     mkdir /data/vendor/wifi 0770 wifi wifi
     mkdir /data/vendor/wifi/sockets 0770 wifi wifi
@@ -45,20 +42,15 @@ on post-fs-data
     mkdir /data/misc/wifi 0770 wifi wifi
     mkdir /data/misc/wifi/sockets 0770 wifi wifi
     mkdir /data/misc/wifi/wpa_supplicant 0770 wifi wifi
-    # NV under the name Huawei's wcnss_service derives from the hardware IDs
     mkdir /data/misc/wifi/nvbin 0770 wifi wifi
     copy /vendor/etc/wifi/WCNSS_hw_wlan_nv_ags_w09.bin /data/misc/wifi/nvbin/msm8937_303_0x00_0x01_0x00_nv.bin
     chown wifi wifi /data/misc/wifi/nvbin/msm8937_303_0x00_0x01_0x00_nv.bin
     chmod 0644 /data/misc/wifi/nvbin/msm8937_303_0x00_0x01_0x00_nv.bin
 
 on boot
-    # the WiFi HAL writes "sta" here; with CONFIG_HUAWEI_WIFI_BUILTIN it only stores the string
     chown wifi wifi /sys/module/wlan/parameters/fwpath
-    # The WiFi HAL (user wifi) starts/stops the built-in prima driver here on Wi-Fi on/off
-    # (WIFI_DRIVER_STATE_CTRL_PARAM). Stock does the same via wlan.driver.trigger.
     chown wifi wifi /proc/wifi_built_in/wifi_start
     chmod 0220 /proc/wifi_built_in/wifi_start
-    # LiveDisplay adaptive backlight: Huawei lcdkit panel CABC (0 = off, 1 = UI mode)
     chown system system /sys/class/graphics/fb0/lcd_cabc_mode
     chmod 0664 /sys/class/graphics/fb0/lcd_cabc_mode
 
@@ -74,13 +66,6 @@ service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
     disabled
     oneshot
 
-# ---------------------------------------------------------------------------------------
-# Sensors (accelerometer -> auto-rotate). The accel (mCube MC3xxx @0x4C) hangs off the
-# ADSP-owned BLSP I2C bus and is driven by the Qualcomm sensor core (SSC) inside the ADSP
-# firmware, so Linux never sees it. Needs: IPC-router security rules, the ADSP booted,
-# and the sensors.qcom registry daemon - all before the sensors HAL (class hal, on boot)
-# enumerates, because the QTI HAL only waits 5 s for the SMGR QMI service.
-# (/vendor/etc/init/hw/init.qcom.rc normally does this but is never imported here.)
 on fs
     write /sys/module/firmware_class/parameters/path /firmware/image
 
@@ -91,13 +76,8 @@ on post-fs-data
     mkdir /data/misc/sensors 0775 system system
 
 on early-boot
-    # CONFIG_IPC_ROUTER_SECURITY: every QMI client send blocks until irsc_util has loaded
-    # /vendor/etc/sec_config (sensor services 256+ are then allowed for gid system)
     start irsc_util
-    # subsys1 == adsp on this kernel/DT (cat /sys/bus/msm_subsys/devices/subsys1/name);
-    # default SYSTEM would panic the SoC on an ADSP crash
     write /sys/bus/msm_subsys/devices/subsys1/restart_level related
-    # synchronous PIL load of /firmware/image/adsp.* (stock does this here too)
     write /sys/kernel/boot_adsp/boot 1
     start sensors
 
@@ -107,26 +87,19 @@ service irsc_util /vendor/bin/irsc_util /vendor/etc/sec_config
     disabled
     oneshot
 
-# Drops to uid 'nobody' itself (LOS has no 'sensors' AID); supplementary groups survive
-# (it never calls setgroups), so 'system' keeps it inside the sec_config sensor rules.
 service sensors /vendor/bin/sensors.qcom
     class core
     user root
     group root system wakelock
     disabled
 
-# ---------------------------------------------------------------------------------------
-# Stock services from /vendor/etc/init/hw/init.{qcom,target}.rc, which is never imported
-# here (/init.rc imports it before /vendor is mounted). Only the ones a Wi-Fi tablet needs.
 on post-fs-data
     # Create folder for mm-qcamera-daemon
     mkdir /data/misc/camera 0770 camera camera
-    # Oreo mm-qcamera-daemon keeps its cam_socket%d and AEC/banding files here
     mkdir /data/vendor/camera 0770 camera camera
     # Create /data/time folder for time-services
     mkdir /data/time/ 0700 system system
 
-# Thermal mitigation (without it nothing throttles the SoC when it heats up)
 service thermal-engine /vendor/bin/thermal-engine -c ${sys.qcom.thermalcfg:-/vendor/etc/thermal-engine.conf}
     class main
     user root
@@ -147,15 +120,8 @@ service qcamerasvr /vendor/bin/mm-qcamera-daemon
     group camera system inet input graphics
 
 on early-init
-    # system_server's wakelock stats read /d/wakeup_sources (3.18 has no /proc/wakelocks);
-    # without debugfs it logs a WTF ("neither /proc/wakelocks nor /d/wakeup_sources exists")
     mount debugfs debugfs /sys/kernel/debug mode=0755
 
-# ---------------------------------------------------------------------------------------
-# Huawei oeminfo service: the sensors HAL reads the factory accelerometer calibration from
-# the oeminfo partition through it (stock started /sbin/oeminfo_nvm_server at early-fs).
-# 3.18 puts the eMMC at /devices/soc/..., so ueventd never makes /dev/block/bootdevice,
-# which the daemon (and other Qualcomm/Huawei blobs) expect.
 on init
     symlink /dev/block/platform/soc/7824900.sdhci /dev/block/bootdevice
 
@@ -167,10 +133,6 @@ service oeminfo_nvm /vendor/bin/oeminfo_nvm_server
     ioprio rt 4
     disabled
 
-# ---------------------------------------------------------------------------------------
-# CPU/scheduler tuning and boosts, normally from /vendor/etc/init/hw/init.qcom.rc (never imported
-# here). Without them the kernel default governor ("performance") pins all cores at max clock and
-# every perf-lock request (power HAL touch/launch boost, audio, video) fails.
 on post-fs-data
     mkdir /data/system/perfd 0770 root system
     chmod 2770 /data/system/perfd
@@ -184,8 +146,6 @@ service perfd /vendor/bin/perfd
     disabled
     socket perfd seqpacket 0666 root system
 
-# Qualcomm's stock (EMUI 8) post-boot script: msm8937/soc 303 branch = 8917 interactive governor,
-# HMP scheduler, bus governors, core_ctl off, zram.
 on property:sys.boot_completed=1
     start qcom-post-boot
 

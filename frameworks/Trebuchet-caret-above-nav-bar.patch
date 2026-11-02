@@ -1,14 +1,12 @@
 diff --git a/src/com/android/launcher3/DeviceProfile.java b/src/com/android/launcher3/DeviceProfile.java
-index 3ca03a8..769ddd8 100644
+index 3ca03a8..1108512 100644
 --- a/src/com/android/launcher3/DeviceProfile.java
 +++ b/src/com/android/launcher3/DeviceProfile.java
-@@ -687,7 +687,9 @@ public class DeviceProfile {
+@@ -687,7 +687,7 @@ public class DeviceProfile {
                  } else {
                      lp.leftMargin = pageIndicatorLandWorkspaceOffsetPx;
                  }
 -                lp.bottomMargin = workspacePadding.bottom;
-+                // On 600-719dp tablets the layout is transposed but the nav bar stays at the
-+                // bottom; keep the caret (and its touch target) above it.
 +                lp.bottomMargin = workspacePadding.bottom + mInsets.bottom;
              } else {
                  // Put the page indicators above the hotseat

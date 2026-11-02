@@ -1,9 +1,6 @@
-# Huawei oeminfo_nvm_server: serves the oeminfo partition over /dev/socket/oeminfo_nvm.
-# The sensors HAL reads the factory accelerometer calibration through it (liboeminfo rmt_oeminfo_read).
 type oeminfo_nvm, domain;
 type oeminfo_nvm_exec, exec_type, vendor_file_type, file_type;
 type oeminfo_nvm_socket, file_type;
-# /dev/oinv: the daemon hands each request's data over in a file there, chowned to the client
 type oeminfo_nvm_device, dev_type;
 init_daemon_domain(oeminfo_nvm)
 
@@ -21,7 +18,6 @@ allow oeminfo_nvm oeminfo_nvm_device:dir create_dir_perms;
 allow oeminfo_nvm oeminfo_nvm_device:file create_file_perms;
 allow oeminfo_nvm self:capability { chown fowner fsetid };
 
-# Only the sensors HAL talks to it (the daemon can also write oeminfo).
 unix_socket_connect(hal_sensors_default, oeminfo_nvm, oeminfo_nvm)
 allow hal_sensors_default oeminfo_nvm_device:dir rw_dir_perms;
 allow hal_sensors_default oeminfo_nvm_device:file { r_file_perms unlink };

@@ -530,7 +530,7 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
 # 2. DTB:  python3 scripts/patch_dtb.py <dtb> <out.dtb> --ramoops
 # 3. Ramdisk: apply ramdisk/* (init.rc charger patch; init.qcom.rc, init.usb.rc, default.prop,
 #    fstab.qcom as provided; real /default.prop file).
-# 4. Sign:  scripts/make_signed_boot.sh  "Image.gz+dtb"  ramdisk.cpio.gz  boot.img  "<cmdline>"
+# 4. Sign:  STOCK_BOOT=<stock boot.bin> scripts/make_signed_boot.sh  "Image.gz+dtb"  ramdisk.cpio.gz  boot.img  "<cmdline>"
 #    cmdline: androidboot.hardware=qcom androidboot.bootdevice=7824900.sdhci (SELinux enforcing;
 #    add androidboot.selinux=permissive only for debugging). The ramdisk needs the sepolicy and
 #    *_contexts built from the tree (mka selinux_policy nonplat_property_contexts ...).

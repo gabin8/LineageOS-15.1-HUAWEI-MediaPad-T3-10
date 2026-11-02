@@ -1,6 +1,3 @@
-# CAF liblight (hardware/qcom/display/msm8996/liblight), built for this device in
-# place of the Huawei lights.msm8937.so blob, which usleep()s inside setLight and
-# stalls BatteryService -> PowerManagerService -> input dispatch for ~4 s.
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 

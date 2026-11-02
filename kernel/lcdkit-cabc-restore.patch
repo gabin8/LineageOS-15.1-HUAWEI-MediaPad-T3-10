@@ -1,8 +1,8 @@
 diff --git a/drivers/devkit/lcdkit/core/common/lcdkit_panel.c b/drivers/devkit/lcdkit/core/common/lcdkit_panel.c
-index 0be4ceb3..f8a5ef9b 100755
+index 0be4ceb3..15410467 100755
 --- a/drivers/devkit/lcdkit/core/common/lcdkit_panel.c
 +++ b/drivers/devkit/lcdkit/core/common/lcdkit_panel.c
-@@ -109,19 +109,14 @@ static ssize_t lcdkit_cabc_mode_show(char* buf)
+@@ -109,19 +109,10 @@ static ssize_t lcdkit_cabc_mode_show(char* buf)
    *@pdata: this void point is used to converte to fb data struct.
    *@buf: the value of cabc mode to be set
  */
@@ -18,10 +18,6 @@ index 0be4ceb3..f8a5ef9b 100755
 -        LCDKIT_ERR("invalid data!\n");
 -        return -EINVAL;
 -    }
-+/*
-+ * The panel's on-sequence resets CABC to its default, so once userspace has
-+ * picked a mode it is re-sent after every panel power-on.
-+ */
 +static bool lcdkit_cabc_mode_user_set;
  
 +static int lcdkit_cabc_mode_apply(void* pdata, unsigned long val)
@@ -29,7 +25,7 @@ index 0be4ceb3..f8a5ef9b 100755
      switch (val)
      {
          case CABC_OFF :
-@@ -144,6 +139,35 @@ static ssize_t lcdkit_cabc_mode_store(void* pdata, const char* buf)
+@@ -144,6 +135,32 @@ static ssize_t lcdkit_cabc_mode_store(void* pdata, const char* buf)
              return -EINVAL;
      }
  
@@ -39,10 +35,7 @@ index 0be4ceb3..f8a5ef9b 100755
 +void lcdkit_restore_cabc_mode(void* pdata)
 +{
 +    if (lcdkit_info.panel_infos.cabc_support && lcdkit_cabc_mode_user_set)
-+    {
 +        lcdkit_cabc_mode_apply(pdata, lcdkit_info.panel_infos.cabc_mode);
-+        LCDKIT_INFO("restored cabc_mode = %d\n", lcdkit_info.panel_infos.cabc_mode);
-+    }
 +}
 +
 +static ssize_t lcdkit_cabc_mode_store(void* pdata, const char* buf)

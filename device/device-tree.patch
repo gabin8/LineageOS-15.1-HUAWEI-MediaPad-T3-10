@@ -1,23 +1,18 @@
 diff --git a/board/wlan.mk b/board/wlan.mk
-index 2f798a2..a106ff8 100644
+index 2f798a2..3675ded 100644
 --- a/board/wlan.mk
 +++ b/board/wlan.mk
-@@ -15,3 +15,13 @@ WIFI_DRIVER_FW_PATH_AP := "ap"
+@@ -15,3 +15,8 @@ WIFI_DRIVER_FW_PATH_AP := "ap"
  WIFI_DRIVER_FW_PATH_STA := "sta"
  
  WPA_SUPPLICANT_VERSION := VER_0_8_X
 +
-+# prima is built into the kernel and started through Huawei's /proc/wifi_built_in/wifi_start,
-+# like stock (whose HAL sets wlan.driver.trigger=start|stop and init writes that node).
-+# The HAL starts the driver on Wi-Fi enable, waits for wlan0, and stops it on Wi-Fi disable.
-+# init.wifi.sh still pre-starts it at boot (stock: wifi_driver_init); a second start is a
-+# no-op in prima.
 +WIFI_DRIVER_STATE_CTRL_PARAM := "/proc/wifi_built_in/wifi_start"
 +WIFI_DRIVER_STATE_ON := "start"
 +WIFI_DRIVER_STATE_OFF := "stop"
 +WIFI_DRIVER_OPERSTATE_PATH := "/sys/class/net/wlan0/operstate"
 diff --git a/device.mk b/device.mk
-index 9d61cfe..d130a85 100644
+index 9d61cfe..991d77a 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -26,3 +26,34 @@ include $(DEVICE_PATH)/product/*.mk
@@ -28,38 +23,38 @@ index 9d61cfe..d130a85 100644
 +# Tablet
 +PRODUCT_CHARACTERISTICS := tablet
 +
-+# Lights (CAF liblight, replaces the sleeping Huawei blob)
++# Lights
 +PRODUCT_PACKAGES += \
 +    lights.msm8937
 +
-+# Wi-Fi only (stock sets ro.radio.noril=true; no dialer/SMS apps on stock)
++# Wi-Fi only
 +PRODUCT_PROPERTY_OVERRIDES += \
 +    ro.radio.noril=true
 +
-+# TeleService binds to it; stock ships it
++# Carrier config
 +PRODUCT_PACKAGES += \
 +    CarrierConfig
 +
-+# Huawei wcnss_service copies its WCNSS cfg from /system/etc/wifi (stock EMUI file)
++# WCNSS config
 +PRODUCT_COPY_FILES += \
 +    $(DEVICE_PATH)/configs/wifi/WCNSS_qcom_cfg_huawei.ini:$(TARGET_COPY_OUT_SYSTEM)/etc/wifi/WCNSS_qcom_cfg.ini
 +
-+# logd.klogd spins at 100% CPU on this 3.18 kernel; kernel log stays available via dmesg
++# Logging
 +PRODUCT_PROPERTY_OVERRIDES += \
 +    ro.logd.kernel=false
 +
-+# Stock marketing name (Huawei product partition); Settings > About shows it with the model
++# Marketing name
 +PRODUCT_PROPERTY_OVERRIDES += \
 +    ro.config.marketing_name=HUAWEI MediaPad T3 10
 +
-+# Shims for Huawei vendor blobs (sensors HAL: libizat_core needs get_process_name)
++# Shims
 +PRODUCT_PACKAGES += \
 +    libshim_procname
 diff --git a/init/init_msm8917.cpp b/init/init_msm8917.cpp
-index 35659e6..967cfe8 100644
+index 35659e6..7518969 100644
 --- a/init/init_msm8917.cpp
 +++ b/init/init_msm8917.cpp
-@@ -110,22 +110,8 @@ static void init_alarm_boot_properties()
+@@ -110,22 +110,7 @@ static void init_alarm_boot_properties()
  
  void check_device()
  {
@@ -79,7 +74,6 @@ index 35659e6..967cfe8 100644
 -	property_set("ro.power_profile.override", "/vendor/etc/power_profile_riva.xml");
 -    }
 -
-+    // Huawei MediaPad T3 10 Wi-Fi (AGS-W09); the rolex/riva board_id probe does not apply
 +    model = "AGS-W09";
  }
  
@@ -128,10 +122,10 @@ index f3f40fb..b4120fb 100644
 +BUILD_FINGERPRINT := "HUAWEI/AGSEEA/HWAGS-Q:8.0.0/HUAWEIAGS-W09/150(C431):user/release-keys"
 diff --git a/lineagehw/org/lineageos/hardware/AdaptiveBacklight.java b/lineagehw/org/lineageos/hardware/AdaptiveBacklight.java
 new file mode 100644
-index 0000000..9eec450
+index 0000000..3287542
 --- /dev/null
 +++ b/lineagehw/org/lineageos/hardware/AdaptiveBacklight.java
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,38 @@
 +/*
 + * Copyright (C) 2013 The CyanogenMod Project
 + * Copyright (C) 2018 The LineageOS Project
@@ -152,14 +146,6 @@ index 0000000..9eec450
 +package org.lineageos.hardware;
 +
 +import org.lineageos.internal.util.FileUtils;
-+
-+/*
-+ * Adaptive backlight through the panel's own CABC (Huawei lcdkit).
-+ *
-+ * Qualcomm's CABL/FOSS path needs the post-processing daemon, which this
-+ * device doesn't run. The panel driver sends the panel's CABC command
-+ * sequences instead: 0 = off, 1 = UI mode.
-+ */
 +
 +public class AdaptiveBacklight {
 +
@@ -213,10 +199,10 @@ index b68f62a..6ccbd3f 100644
           This integer should equal the sum of the corresponding value for each
 diff --git a/overlay-lineage/packages/apps/LockClock/res/values-sw600dp/dimens.xml b/overlay-lineage/packages/apps/LockClock/res/values-sw600dp/dimens.xml
 new file mode 100644
-index 0000000..07448f9
+index 0000000..49c905c
 --- /dev/null
 +++ b/overlay-lineage/packages/apps/LockClock/res/values-sw600dp/dimens.xml
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,19 @@
 +<?xml version="1.0" encoding="utf-8"?>
 +<!--
 +     Copyright (C) 2026 The LineageOS Project
@@ -234,30 +220,26 @@ index 0000000..07448f9
 +     limitations under the License.
 +-->
 +<resources>
-+    <!-- The default 4x2 widget is 189dp tall in landscape on this 213dpi tablet. The stock
-+         130dp clock leaves no room for the date line below it, so it gets clipped. -->
 +    <dimen name="widget_big_font_size">116dp</dimen>
 +</resources>
 diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
-index 9d62e79..4879dcf 100644
+index 9d62e79..dc22ae7 100644
 --- a/overlay/frameworks/base/core/res/res/values/config.xml
 +++ b/overlay/frameworks/base/core/res/res/values/config.xml
-@@ -22,7 +22,8 @@
+@@ -22,7 +22,7 @@
  
      <!-- Flag indicating whether the we should enable the automatic brightness in Settings.
           Software implementation will be used if config_hardware_auto_brightness_available is not set -->
 -    <bool name="config_automatic_brightness_available">true</bool>
-+    <!-- AGS-W09 has no ambient light sensor: no adaptive brightness. -->
 +    <bool name="config_automatic_brightness_available">false</bool>
  
      <!-- Array of light sensor LUX values to define our levels for auto backlight brightness support.
           The N entries of this array define N + 1 control points as follows:
-@@ -201,15 +202,16 @@
+@@ -201,15 +201,15 @@
      <bool name="config_hotswapCapable">true</bool>
  
      <!-- Flag specifying whether VoLTE is available on device -->
 -    <bool name="config_device_volte_available">true</bool>
-+    <!-- Wi-Fi only: no VoLTE, video calling or IMS -->
 +    <bool name="config_device_volte_available">false</bool>
  
      <!-- Flag specifying whether VoLTE should be available for carrier: independent of
@@ -272,7 +254,7 @@ index 9d62e79..4879dcf 100644
  
      <!-- Config determines whether to update phone object when voice registration
           state changes. Voice radio tech change will always trigger an update of
-@@ -316,10 +318,10 @@
+@@ -316,10 +316,10 @@
      <bool name="config_enableWifiDisplay">true</bool>
  
      <!-- ImsService package name to bind to by default, if config_dynamic_bind_ims is true -->
@@ -285,12 +267,11 @@ index 9d62e79..4879dcf 100644
  
       <!-- Boolean indicating if current platform supports HFP inband ringing -->
       <bool name="config_bluetooth_hfp_inband_ringing_support">true</bool>
-@@ -333,4 +335,10 @@
+@@ -333,4 +333,9 @@
  
      <!-- Whether device supports double tap to wake -->
      <bool name="config_supportDoubleTapWake">true</bool>
 +
-+    <!-- Wi-Fi only tablet: no voice calls or SMS; no hardware navigation keys -->
 +    <bool name="config_voice_capable">false</bool>
 +    <bool name="config_sms_capable">false</bool>
 +    <bool name="config_showNavigationBar">true</bool>
@@ -375,10 +356,10 @@ index 425d53c..0000000
 -    android.hardware.gatekeeper@1.0-impl \
 -    android.hardware.gatekeeper@1.0-service
 diff --git a/product/media.mk b/product/media.mk
-index a60581a..c620ddc 100644
+index a60581a..73c648e 100644
 --- a/product/media.mk
 +++ b/product/media.mk
-@@ -12,16 +12,9 @@ PRODUCT_COPY_FILES += \
+@@ -12,17 +12,6 @@ PRODUCT_COPY_FILES += \
      frameworks/av/media/libstagefright/data/media_codecs_google_telephony.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_codecs_google_telephony.xml \
      frameworks/av/media/libstagefright/data/media_codecs_google_video.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_codecs_google_video.xml
  
@@ -392,17 +373,15 @@ index a60581a..c620ddc 100644
 -    libOmxVdec \
 -    libOmxVenc \
 -    libstagefrighthw
-+# Media: Qualcomm OMX (libOmx*, libstagefrighthw, libhypv_intercept) comes from the stock EMUI 8
-+# vendor blobs, matching the stock Oreo gralloc this port uses (see vendor-blobs.md), not from
-+# hardware/qcom/media-caf.
- 
+-
  # Properties
  PRODUCT_PROPERTY_OVERRIDES += \
+     drm.service.enabled=true \
 diff --git a/product/radio.mk b/product/radio.mk
-index f587f99..2bd56ac 100644
+index f587f99..679a269 100644
 --- a/product/radio.mk
 +++ b/product/radio.mk
-@@ -4,47 +4,15 @@ PRODUCT_COPY_FILES += \
+@@ -4,8 +4,6 @@ PRODUCT_COPY_FILES += \
  
  # Permissions
  PRODUCT_COPY_FILES += \
@@ -411,10 +390,8 @@ index f587f99..2bd56ac 100644
      frameworks/native/data/etc/android.software.sip.voip.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.sip.voip.xml
  
  PRODUCT_PACKAGES += \
-     libjson
- 
--# Properties
-+# Properties (Wi-Fi only: one dormant phone, no IMS/VoLTE/VT/WFC overrides, no RIL)
+@@ -14,37 +12,7 @@ PRODUCT_PACKAGES += \
+ # Properties
  PRODUCT_PROPERTY_OVERRIDES += \
      DEVICE_PROVISIONED=1 \
 -    persist.data.iwlan.enable=true \
@@ -453,26 +430,25 @@ index f587f99..2bd56ac 100644
  # Radio
  PRODUCT_PACKAGES += \
 diff --git a/sepolicy/device.te b/sepolicy/device.te
-index d580073..500c56a 100644
+index d580073..be57957 100644
 --- a/sepolicy/device.te
 +++ b/sepolicy/device.te
 @@ -1 +1,5 @@
  type lirc_device, dev_type;
 +type vendor_block_device, dev_type;
 +type oeminfo_block_device, dev_type;
-+# Huawei kernel log nodes (/dev/hwlog_*), opened by the kernel's own log workers
++# Huawei kernel log nodes
 +type hwlog_device, dev_type;
 diff --git a/sepolicy/file_contexts b/sepolicy/file_contexts
-index 3b9210d..8a9c2f8 100644
+index 3b9210d..9437886 100644
 --- a/sepolicy/file_contexts
 +++ b/sepolicy/file_contexts
-@@ -13,3 +13,24 @@
+@@ -13,3 +13,23 @@
  
  # Light HAL
  /(vendor|system/vendor)/bin/hw/android\.hardware\.light@2\.0-service\.xiaomi_8917 u:object_r:hal_light_default_exec:s0
 +
-+# Partitions: by-name links under the platform path, and under bootdevice once
-+# androidboot.bootdevice is on the kernel cmdline
++# Partitions
 +/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/system	u:object_r:system_block_device:s0
 +/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/vendor	u:object_r:vendor_block_device:s0
 +/dev/block/(bootdevice|platform/soc/7824900\.sdhci)/by-name/userdata	u:object_r:userdata_block_device:s0
@@ -487,7 +463,7 @@ index 3b9210d..8a9c2f8 100644
 +# Huawei kernel log nodes
 +/dev/hwlog_[a-z]+				u:object_r:hwlog_device:s0
 +/(vendor|system/vendor)/bin/oeminfo_nvm_server	u:object_r:oeminfo_nvm_exec:s0
-+# Qualcomm perfd (legacy-common labels)
++# perfd
 +/(vendor|system/vendor)/bin/perfd	u:object_r:perfd_exec:s0
 +/data/system/perfd(/.*)?		u:object_r:mpctl_data_file:s0
 +/dev/socket/perfd			u:object_r:mpctl_socket:s0
@@ -500,16 +476,13 @@ index 1500b5f..2676d21 100644
 +allow fsck vendor_block_device:blk_file rw_file_perms;
 diff --git a/sepolicy/oeminfo_nvm.te b/sepolicy/oeminfo_nvm.te
 new file mode 100644
-index 0000000..3b19ea0
+index 0000000..66190db
 --- /dev/null
 +++ b/sepolicy/oeminfo_nvm.te
-@@ -0,0 +1,27 @@
-+# Huawei oeminfo_nvm_server: serves the oeminfo partition over /dev/socket/oeminfo_nvm.
-+# The sensors HAL reads the factory accelerometer calibration through it (liboeminfo rmt_oeminfo_read).
+@@ -0,0 +1,23 @@
 +type oeminfo_nvm, domain;
 +type oeminfo_nvm_exec, exec_type, vendor_file_type, file_type;
 +type oeminfo_nvm_socket, file_type;
-+# /dev/oinv: the daemon hands each request's data over in a file there, chowned to the client
 +type oeminfo_nvm_device, dev_type;
 +init_daemon_domain(oeminfo_nvm)
 +
@@ -527,18 +500,15 @@ index 0000000..3b19ea0
 +allow oeminfo_nvm oeminfo_nvm_device:file create_file_perms;
 +allow oeminfo_nvm self:capability { chown fowner fsetid };
 +
-+# Only the sensors HAL talks to it (the daemon can also write oeminfo).
 +unix_socket_connect(hal_sensors_default, oeminfo_nvm, oeminfo_nvm)
 +allow hal_sensors_default oeminfo_nvm_device:dir rw_dir_perms;
 +allow hal_sensors_default oeminfo_nvm_device:file { r_file_perms unlink };
 diff --git a/sepolicy/perfd.te b/sepolicy/perfd.te
 new file mode 100644
-index 0000000..a748f08
+index 0000000..8e8db85
 --- /dev/null
 +++ b/sepolicy/perfd.te
-@@ -0,0 +1,47 @@
-+# Qualcomm perfd (Nougat build): CPU/bus boosts for the power HAL (touch, launch), audio, camera and
-+# video. Rules from device/qcom/sepolicy legacy-common/perfd.te; stock started it from its ramdisk.
+@@ -0,0 +1,44 @@
 +type perfd, domain;
 +type perfd_exec, exec_type, vendor_file_type, file_type;
 +init_daemon_domain(perfd)
@@ -574,7 +544,6 @@ index 0000000..a748f08
 +r_dir_file(perfd, hal_power_default)
 +r_dir_file(perfd, sysfs_mmc_host)
 +
-+# Clients: system components only (Qualcomm's legacy policy also let every app connect).
 +unix_socket_connect(hal_power_default, mpctl, perfd)
 +unix_socket_connect(hal_audio_default, mpctl, perfd)
 +unix_socket_connect(hal_camera_default, mpctl, perfd)
@@ -586,11 +555,10 @@ index 0000000..a748f08
 +
 diff --git a/sepolicy/qti_init_shell.te b/sepolicy/qti_init_shell.te
 new file mode 100644
-index 0000000..d64be66
+index 0000000..f97c5ef
 --- /dev/null
 +++ b/sepolicy/qti_init_shell.te
-@@ -0,0 +1,2 @@
-+# Qualcomm's init.qcom.post_boot.sh (/vendor/bin/sh) calls getprop/setprop/cat/mkswap/swapon from toolbox.
+@@ -0,0 +1 @@
 +allow qti_init_shell toolbox_exec:file { rx_file_perms execute_no_trans };
 diff --git a/sepolicy/system_server.te b/sepolicy/system_server.te
 index 9e71316..affc5b7 100644

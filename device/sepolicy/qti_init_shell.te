@@ -1,2 +1,1 @@
-# Qualcomm's init.qcom.post_boot.sh (/vendor/bin/sh) calls getprop/setprop/cat/mkswap/swapon from toolbox.
 allow qti_init_shell toolbox_exec:file { rx_file_perms execute_no_trans };
