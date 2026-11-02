@@ -499,7 +499,7 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     without the bottom inset, so the arrow was drawn over the nav bar while its touch target was an 8px strip
     above it; taps landed on the nav bar. Adding `mInsets.bottom` (0 on phones in landscape) puts the caret and
     its 64px target above the nav bar. Swiping up on the home screen opens the drawer either way.
-60. **Recording level checked against stock: same chain** (no change). A plain MIC recording (Recorder app)
+60. **Recording level checked against stock: same chain** (boost added in 61). A plain MIC recording (Recorder app)
     peaks around -20 dBFS for speech. Every layer matches stock EMUI 8: the HAL loads stock's agassi files
     (`/product/etc/acdbdata/agassi/` mixer paths, `audio_platform_info.xml`, ACDB), selects `speaker-mic`
     (ACDB 11, app type 69938) as stock does, and the codec runs with stock's gains (ADC1 6/8, DEC1 0 dB) and
@@ -507,6 +507,16 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     effects config adds no AGC for mic capture either. Our `build.prop` fluence values differ from stock
     (`fluencetype=fluence`, `fluence.voicerec=true`), but the HAL reports `Fluence_Type(0)` and records with
     one mic, as stock does.
+61. **+6 dB recording boost** (`vendor/apply-recording-boost.sh`, edits Huawei's two agassi files on `/product`,
+    stock copies kept as `*.bak-stock`, `--revert` restores them). Stock's tuning left speech peaking around
+    -20 dBFS. VoIP capture runs on the same `audio-record` usecase (no `VOIP_TX` input port in the policy
+    config, ours or stock's), so a plain boost on that path would also raise VoIP. Instead,
+    `audio_platform_info.xml` tags just the built-in-mic MIC-source devices (`SND_DEVICE_IN_SPEAKER_MIC`, and
+    `SPEAKER_STEREO_DMIC` for stereo) with backend `rec-boost`. The HAL then applies `audio-record rec-boost` /
+    `low-latency-record rec-boost` / `audio-record-compress rec-boost` for them: the stock path plus
+    `DEC1 Volume` 90 (84 = 0 dB). VoIP (AEC/NS devices), camcorder and voice-recognition capture keep stock's
+    paths, and DEC1 returns to 0 dB when the recording stops. Measured with a 1 kHz tone played through the
+    speaker into the Recorder: -47.1 / -47.7 dBFS before, -41.8 / -41.8 dBFS after.
 
 ## Build & flash (outline)
 
@@ -538,6 +548,7 @@ adb shell 'sh /data/local/tmp/remove-qcom-diag-gid.sh; sh /data/local/tmp/disabl
 #    (and: consumerir.default.so + android.hardware.gnss@1.0-service/-impl + the generic light service,
 #     all built from AOSP; see fixes 10 & 13.)
 adb push vendor/apply-buildprop-fixes.sh /data/local/tmp/ && adb shell sh /data/local/tmp/apply-buildprop-fixes.sh
+adb push vendor/apply-recording-boost.sh /data/local/tmp/ && adb shell sh /data/local/tmp/apply-recording-boost.sh
 #    shims (device/libshims, built with the tree) → /vendor/lib{,64}; replace
 #    /vendor/etc/init/android.hardware.sensors@1.0-service.rc with vendor/sensors/'s copy and move
 #    unwanted rc files to /vendor/etc/init-disabled. Finally: adb shell restorecon -R /vendor
