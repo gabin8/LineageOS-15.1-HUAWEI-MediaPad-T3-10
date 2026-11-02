@@ -488,6 +488,25 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     devices (ringtone/low-power speaker paths), which the XML can't address. Playback still sends app type
     69936 / ACDB 14 / 48 kHz, as before. (A full `tinymix` dump logs ~40 `ADM get param error = 2` lines:
     DSP get-param controls for modules this topology doesn't have time out one by one. That's expected.)
+58. **Home-screen clock widget cuts off the date** (`device/device-tree.patch`:
+    `overlay-lineage/packages/apps/LockClock/res/values-sw600dp/dimens.xml`). cLock scales its clock font by
+    the widget's width only. The default 4x2 widget is 189dp tall in landscape at this 213dpi density, and
+    the stock sw600dp 130dp clock leaves too little room, so "Mon, November 2" lost its bottom. The overlay
+    sets `widget_big_font_size` to 116dp; the date line now fits with room to spare. Rebuild `LockClock`.
+59. **App-drawer arrow (bottom left) did nothing when tapped** (`frameworks/Trebuchet-caret-above-nav-bar.patch`).
+    600-719dp tablets get Launcher3's transposed phone layout in landscape (hotseat on the right, "Apps list"
+    caret bottom left), but here the nav bar stays at the bottom. `DeviceProfile` set the caret's bottom margin
+    without the bottom inset, so the arrow was drawn over the nav bar while its touch target was an 8px strip
+    above it; taps landed on the nav bar. Adding `mInsets.bottom` (0 on phones in landscape) puts the caret and
+    its 64px target above the nav bar. Swiping up on the home screen opens the drawer either way.
+60. **Recording level checked against stock: same chain** (no change). A plain MIC recording (Recorder app)
+    peaks around -20 dBFS for speech. Every layer matches stock EMUI 8: the HAL loads stock's agassi files
+    (`/product/etc/acdbdata/agassi/` mixer paths, `audio_platform_info.xml`, ACDB), selects `speaker-mic`
+    (ACDB 11, app type 69938) as stock does, and the codec runs with stock's gains (ADC1 6/8, DEC1 0 dB) and
+    Huawei's MIC1 differential mode (register 0x145 = 0x03). The audio DT nodes equal stock's, and stock's
+    effects config adds no AGC for mic capture either. Our `build.prop` fluence values differ from stock
+    (`fluencetype=fluence`, `fluence.voicerec=true`), but the HAL reports `Fluence_Type(0)` and records with
+    one mic, as stock does.
 
 ## Build & flash (outline)
 
