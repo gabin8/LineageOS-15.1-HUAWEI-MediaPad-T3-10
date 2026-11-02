@@ -3,7 +3,8 @@
 # that reference symbols absent in 8.1 (e.g. libizat_core.so needs get_process_name). Because they
 # run in the system process, their crash takes down system_server (lock-screen<->bootanim loop).
 # They are not needed for basic operation (GNSS is served by a stub HAL). Disable them.
-# Permanent fix: remove these from PRODUCT_PACKAGES.
+# Permanent fix (done, README fix 48): the vendor image no longer contains these apps. This script is only
+# needed on a /vendor flashed before 2026-11-02.
 for p in com.qualcomm.location com.quicinc.cne.CNEService com.qti.dpmserviceapp \
          com.qti.service.colorservice com.qualcomm.svi com.qualcomm.cabl com.qualcomm.qti.tetherservice com.qualcomm.qcrilmsgtunnel \
          com.qualcomm.qti.logkit com.qualcomm.qti.qcom_accesslogkit \

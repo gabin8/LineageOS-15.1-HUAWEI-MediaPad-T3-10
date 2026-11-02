@@ -101,6 +101,7 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     A7-era vendor libs (e.g. `libizat_core.so` needs the missing symbol `get_process_name`) and take down
     system_server (they run in the system process → lock-screen↔boot-animation loop). Disable
     com.qualcomm.location, CNEService, dpmserviceapp, colorservice, svi, cabl. (GNSS = stub HAL.)
+    Superseded by fix 48: the vendor image no longer contains them, so nothing depends on `/data` state.
 13. **`audio_policy_configuration.xml`** — stock Huawei policy minus the **FM tuner**, telephony devices
     and the remote-submix module. With the real HAL (`audio.primary.msm8937.so`), AudioPolicyManager
     test-opens every attached input at startup; for the FM tuner (and remote submix) the HAL returns a
@@ -406,6 +407,14 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     (or needs a signature permission; `OBSERVE_AUDIO_SESSIONS` is `normal`), even while the app runs. Backported
     lineage-sdk `dc5d872a2f` from lineage-16.0, which adds the flag. Now delivered, and each new session gets
     AudioFX's chain (Equalizer, Virtualizer, Preset Reverb, Bass Boost).
+48. **Crashing Qualcomm apps on fresh installs** (`device/vendor-blobs.md`). Fix 12 only *disabled* six vendor
+    apps with `pm disable`, which lives in `/data`; an install that wipes userdata (every tester) runs them
+    again. A tester on AGS-L09 reported `.dataservices` crashing (`QtiTetherService`: `NoClassDefFoundError
+    com.qualcomm.qti.tetherstatsextension.ITetherService$Stub`, a framework jar LineageOS doesn't have) and
+    "SVI Settings stopped" (SVI/CABL need Qualcomm's display post-processing daemon, which isn't started).
+    `com.qualcomm.location`, `CNEService`, `colorservice`, `SVIService`, `CABLService` and `QtiTetherService`
+    are now removed from the vendor image (`ags_w09-vendor.mk`, `proprietary-files.txt`). Wi-Fi, location
+    (fused/GPS stub/passive) and SELinux are unaffected.
 
 ## Build & flash (outline)
 

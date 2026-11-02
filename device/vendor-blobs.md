@@ -20,6 +20,11 @@ In `device/huawei/ags_w09/proprietary-files.txt`, comment out the two entries so
 | `ims`, `imssettings`, `embms`, `qcrilmsgtunnel`, `dpmserviceapp`, `atfwd` (`PRODUCT_PACKAGES`) | Wi-Fi calling, LTE broadcast, RIL/AT/data-port plumbing; Wi-Fi only |
 | `qti-logkit`, `access-qcom-logkit` (`PRODUCT_PACKAGES`) | Qualcomm engineering log tool, not on stock Oreo; NPE-crashes at boot without DIAG access |
 | `vendor/etc/permissions/android.hardware.fingerprint.xml` | the T3 10 has no fingerprint sensor; the feature alone starts FingerprintService, which keeps looking for a HAL |
+| `vendor/app/QtiTetherService` | needs Qualcomm's `tetherstatsextension` framework jar, which LineageOS lacks → `.dataservices` crash loop |
+| `vendor/app/SVIService`, `vendor/app/CABLService`, `vendor/app/colorservice` | Qualcomm display post-processing (sunlight visibility, content-adaptive backlight, colour modes); need the `ppd`/`mm-pp-dpps` daemon, not started → "SVI Settings stopped" |
+| `vendor/app/com.qualcomm.location`, `vendor/app/CNEService` | run in the system process on A7-era libs (`libizat_core` needs a missing symbol); a crash takes system_server down. GNSS is a stub HAL, CNE isn't needed on Wi-Fi |
+
+These six were first only `pm disable`d (README fix 12), which lives in `/data` and is lost on every fresh install.
 
 Shims these blobs need live in `device/libshims` (`libshim_procname`).
 
