@@ -111,9 +111,10 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     test at 16/44.1/48 kHz, mono and stereo). The real HAL needs the ADSP booted (item 24) so the
     `msm8952-snd-card-mtp` card exists. (Also needed: the built `consumerir.default.so` and the `gnss@1.0`
     service on `/vendor` so IConsumerIr/IGnss register — system_server hard-blocks on them here.)
-14. ~~`gpio-keys.kl`~~ (removed 2026-11-02). It mapped power/volume-down onto `gpio-keys`, but on this board
-    POWER and VOLUME_DOWN come from the PMIC (`qpnp_pon`) and `gpio-keys` only has VOLUME_UP; Android used
-    `Generic.kl` for both devices anyway, so the file never applied.
+14. **`gpio-keys.kl`: stock's file, no custom one** (2026-11-02). The custom copy this item used to ship mapped
+    POWER/VOLUME_DOWN onto `gpio-keys`, but on this board those come from the PMIC (`qpnp_pon`), so it was
+    dropped. Stock EMUI's own `/vendor/usr/keylayout/gpio-keys.kl` (VOLUME_UP/DOWN, HOME, FOCUS, CAMERA),
+    which the vendor tree already ships, stays in place.
 15. **`ro.sys.sdcardfs=false`** (in `/vendor/build.prop`) — the kernel's sdcardfs 2.1.3 rejects the 8.1
     sdcard daemon's mount options (`derive_gid`) → vold hangs "Waiting for FUSE to spin up". Force FUSE
     (the kernel has it) and vold's storage scan completes.
@@ -474,10 +475,19 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     'VISENSE Switch' / 'MI2S_DL_HL Switch' doesn't exist` (paths for an external WSA speaker amp this tablet
     doesn't have); `unknown enum value 16000 for Internal BTSCO SampleRate` (Bluetooth audio, BT not up);
     `cpe0_state` and `sound_trigger ... platform init failed` (no codec processing engine for hotword
-    detection); `set/get_master_volume: not implemented` (normal, Android does volume); `init_be_dai_name_table`
-    (this kernel's machine driver has no "Backend DAI Name Table" control, so the HAL uses the default app type;
-    playback and calibration unaffected); `QC-time-services ... get_service_list returned -2` (no modem QMI time
+    detection); `set/get_master_volume: not implemented` (normal, Android does volume); `QC-time-services ... get_service_list returned -2` (no modem QMI time
     service on the Wi-Fi model; RTC is used).
+57. **`init_be_dai_name_table: Could not get ctl for mixer cmd - Backend DAI Name Table`**
+    (`kernel/backend-dai-name-table.patch`). The Oreo audio HAL reads a table of back-end DAI names from the
+    kernel to turn a sound device's interface name into a back-end ID; this 3.18 routing driver predates the
+    control. Backported from Qualcomm's routing driver: a read-only TLV bytes control filled from `msm_bedais[]`
+    (`{be_id, char name[24]}`, the layout the HAL expects). The HAL's built-in interface names now resolve.
+    There is deliberately no `backend_names` override in `audio_platform_info.xml`. The ID only rides along
+    in the stream app-type config, which this kernel reads as three values (app type, ACDB device, rate). And
+    remapping speaker to `PRI_MI2S_RX` would change the HAL's same-backend check against Huawei's extra
+    devices (ringtone/low-power speaker paths), which the XML can't address. Playback still sends app type
+    69936 / ACDB 14 / 48 kHz, as before. (A full `tinymix` dump logs ~40 `ADM get param error = 2` lines:
+    DSP get-param controls for modules this topology doesn't have time out one by one. That's expected.)
 
 ## Build & flash (outline)
 
@@ -485,7 +495,8 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
 
 ```bash
 # 1. Kernel: drop kernel/binder/* into drivers/staging/android/, set the binder devices config,
-#    apply kernel/prima-mdns-filter-oops.patch and kernel/oreo-camera-v2.patch,
+#    apply kernel/prima-mdns-filter-oops.patch, kernel/oreo-camera-v2.patch,
+#    kernel/lcdkit-cabc-restore.patch and kernel/backend-dai-name-table.patch,
 #    (optionally) apply kernel/ambient-caps-3.18.patch, build Image.gz (GCC 4.9 aarch64).
 # 2. DTB:  python3 scripts/patch_dtb.py <dtb> <out.dtb> --ramoops
 # 3. Ramdisk: apply ramdisk/* (init.rc charger patch; init.qcom.rc, init.usb.rc, default.prop,
