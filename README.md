@@ -9,7 +9,7 @@ I know this is the first time this exact unit (Snapdragon T3, **not** the Kirin 
 - **Target:** LineageOS 15.1 (Android 8.1), 3.18 kernel
 - ⚠️ **AGS-W09 (Snapdragon T3) is NOT AGS2-W09 (Kirin T5).** Do not cross-flash. Hard-brick risk.
 
-**Download (test build):** [v15.1-20261030](https://github.com/gabin8/LineageOS-15.1-HUAWEI-MediaPad-T3-10/releases/tag/v15.1-20261030): one zip with the RAM-boot image, system, vendor and product images, kernel source and `INSTALL.txt`. Needs the engineering bootloader; read `INSTALL.txt` first (the boot image is only ever `fastboot boot`ed).
+**Download (test build):** [v15.1-20261102](https://github.com/gabin8/LineageOS-15.1-HUAWEI-MediaPad-T3-10/releases/tag/v15.1-20261102) (previous: [v15.1-20261030](https://github.com/gabin8/LineageOS-15.1-HUAWEI-MediaPad-T3-10/releases/tag/v15.1-20261030)): one zip with the RAM-boot image, system, vendor and product images, kernel source and `INSTALL.txt`. Needs the engineering bootloader; read `INSTALL.txt` first (the boot image is only ever `fastboot boot`ed).
 
 ## ⚠️ This unit runs a flashed engineering QRD bootloader
 
