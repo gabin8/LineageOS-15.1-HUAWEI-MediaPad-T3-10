@@ -455,6 +455,19 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     `android.hardware.camera.flash-autofocus.xml`; SystemUI's flashlight tile checks that feature, so it showed
     a dead tile. Now `android.hardware.camera.autofocus.xml`. (Battery saver greys out only while charging,
     as on any Android 8.1 device.)
+54. **`Failed to call ioctl for anc_cal/vbat_cal err=14` (harmless).** The Oreo audio HAL offers every codec
+    calibration type; the kernel answers `wcdcal_hwdep_ioctl_shared: codec didn't set this 0/3` (ANC, VBAT).
+    The PM8937 analog codec (`msm8x16-wcd`) registers only MBHC (headset detection) calibration: it has no ANC
+    hardware and takes no VBAT calibration this way. Same driver and HAL as stock, so nothing to fix.
+55. **CPU pinned at max clock, no perf boosts** (`device/sepolicy/{perfd,qti_init_shell}.te`, ramdisk
+    `init.qcom.rc`, `device/vendor-blobs.md`). The kernel's default governor is `performance`, and Qualcomm's
+    `init.qcom.post_boot.sh` (stock: vendor `init.qcom.rc`, never imported here) never ran, so all four cores
+    sat at 1.4 GHz. `perfd` (stock Nougat started it from its ramdisk) wasn't running either, so every
+    perf-lock request failed: the power HAL's touch/launch boosts, audio (`Failed to acquire perf lock`) and
+    video (`perflock acquired,handle=-1`). Now the ramdisk starts `perfd` (Qualcomm legacy-common policy;
+    clients limited to system components, not every app) and runs the EMUI 8 `init.qcom.post_boot.sh`
+    (msm8937, soc 303 = 8917 branch) on boot completion: interactive governor with Qualcomm's 8917 tuning,
+    HMP scheduler settings, `bw_hwmon` bus governor, `core_ctl` off, 1 GB zRAM. Idle cores now sit at 960 MHz.
 
 ## Build & flash (outline)
 

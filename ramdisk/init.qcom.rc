@@ -166,3 +166,31 @@ service oeminfo_nvm /vendor/bin/oeminfo_nvm_server
     class core
     ioprio rt 4
     disabled
+
+# ---------------------------------------------------------------------------------------
+# CPU/scheduler tuning and boosts, normally from /vendor/etc/init/hw/init.qcom.rc (never imported
+# here). Without them the kernel default governor ("performance") pins all cores at max clock and
+# every perf-lock request (power HAL touch/launch boost, audio, video) fails.
+on post-fs-data
+    mkdir /data/system/perfd 0770 root system
+    chmod 2770 /data/system/perfd
+    rm /data/system/perfd/default_values
+    start perfd
+
+service perfd /vendor/bin/perfd
+    class main
+    user root
+    group root readproc
+    disabled
+    socket perfd seqpacket 0666 root system
+
+# Qualcomm's stock (EMUI 8) post-boot script: msm8937/soc 303 branch = 8917 interactive governor,
+# HMP scheduler, bus governors, core_ctl off, zram.
+on property:sys.boot_completed=1
+    start qcom-post-boot
+
+service qcom-post-boot /vendor/bin/init.qcom.post_boot.sh
+    class late_start
+    user root
+    disabled
+    oneshot

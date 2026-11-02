@@ -30,3 +30,7 @@
 # Huawei kernel log nodes
 /dev/hwlog_[a-z]+				u:object_r:hwlog_device:s0
 /(vendor|system/vendor)/bin/oeminfo_nvm_server	u:object_r:oeminfo_nvm_exec:s0
+# Qualcomm perfd (legacy-common labels)
+/(vendor|system/vendor)/bin/perfd	u:object_r:perfd_exec:s0
+/data/system/perfd(/.*)?		u:object_r:mpctl_data_file:s0
+/dev/socket/perfd			u:object_r:mpctl_socket:s0

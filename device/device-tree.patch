@@ -436,10 +436,10 @@ index d580073..500c56a 100644
 +# Huawei kernel log nodes (/dev/hwlog_*), opened by the kernel's own log workers
 +type hwlog_device, dev_type;
 diff --git a/sepolicy/file_contexts b/sepolicy/file_contexts
-index 3b9210d..8248b55 100644
+index 3b9210d..8a9c2f8 100644
 --- a/sepolicy/file_contexts
 +++ b/sepolicy/file_contexts
-@@ -13,3 +13,20 @@
+@@ -13,3 +13,24 @@
  
  # Light HAL
  /(vendor|system/vendor)/bin/hw/android\.hardware\.light@2\.0-service\.xiaomi_8917 u:object_r:hal_light_default_exec:s0
@@ -460,6 +460,10 @@ index 3b9210d..8248b55 100644
 +# Huawei kernel log nodes
 +/dev/hwlog_[a-z]+				u:object_r:hwlog_device:s0
 +/(vendor|system/vendor)/bin/oeminfo_nvm_server	u:object_r:oeminfo_nvm_exec:s0
++# Qualcomm perfd (legacy-common labels)
++/(vendor|system/vendor)/bin/perfd	u:object_r:perfd_exec:s0
++/data/system/perfd(/.*)?		u:object_r:mpctl_data_file:s0
++/dev/socket/perfd			u:object_r:mpctl_socket:s0
 diff --git a/sepolicy/fsck.te b/sepolicy/fsck.te
 index 1500b5f..2676d21 100644
 --- a/sepolicy/fsck.te
@@ -500,6 +504,67 @@ index 0000000..3b19ea0
 +unix_socket_connect(hal_sensors_default, oeminfo_nvm, oeminfo_nvm)
 +allow hal_sensors_default oeminfo_nvm_device:dir rw_dir_perms;
 +allow hal_sensors_default oeminfo_nvm_device:file { r_file_perms unlink };
+diff --git a/sepolicy/perfd.te b/sepolicy/perfd.te
+new file mode 100644
+index 0000000..a748f08
+--- /dev/null
++++ b/sepolicy/perfd.te
+@@ -0,0 +1,47 @@
++# Qualcomm perfd (Nougat build): CPU/bus boosts for the power HAL (touch, launch), audio, camera and
++# video. Rules from device/qcom/sepolicy legacy-common/perfd.te; stock started it from its ramdisk.
++type perfd, domain;
++type perfd_exec, exec_type, vendor_file_type, file_type;
++init_daemon_domain(perfd)
++
++allow perfd self:capability { fsetid kill };
++allow perfd {
++    sysfs_devices_system_cpu
++    sysfs_cpu_online
++    sysfs_scsi_host
++    proc
++    sysfs
++}:file rw_file_perms;
++r_dir_file(perfd, sysfs_devfreq)
++allow perfd sysfs_devfreq:file write;
++r_dir_file(perfd, sysfs_msm_perf)
++allow perfd sysfs_msm_perf:file write;
++r_dir_file(perfd, sysfs_msm_power)
++allow perfd sysfs_msm_power:file write;
++allow perfd sysfs_lib:file w_file_perms;
++r_dir_file(perfd, sysfs_kgsl)
++allow perfd sysfs_kgsl:file write;
++allow perfd sysfs_thermal:dir search;
++allow perfd sysfs_thermal:file w_file_perms;
++allow perfd mpctl_socket:dir rw_dir_perms;
++allow perfd mpctl_socket:sock_file create_file_perms;
++allow perfd mpctl_data_file:dir rw_dir_perms;
++allow perfd mpctl_data_file:file create_file_perms;
++unix_socket_connect(perfd, thermal, thermal-engine)
++allow perfd domain:process signull;
++set_prop(perfd, freq_prop)
++allow perfd cgroup:file r_file_perms;
++allow perfd sysfs:dir r_dir_perms;
++r_dir_file(perfd, hal_power_default)
++r_dir_file(perfd, sysfs_mmc_host)
++
++# Clients: system components only (Qualcomm's legacy policy also let every app connect).
++unix_socket_connect(hal_power_default, mpctl, perfd)
++unix_socket_connect(hal_audio_default, mpctl, perfd)
++unix_socket_connect(hal_camera_default, mpctl, perfd)
++unix_socket_connect(mediacodec, mpctl, perfd)
++unix_socket_connect(cameraserver, mpctl, perfd)
++unix_socket_connect(audioserver, mpctl, perfd)
++unix_socket_connect(surfaceflinger, mpctl, perfd)
++unix_socket_connect(hal_graphics_composer_default, mpctl, perfd)
++
+diff --git a/sepolicy/qti_init_shell.te b/sepolicy/qti_init_shell.te
+new file mode 100644
+index 0000000..d64be66
+--- /dev/null
++++ b/sepolicy/qti_init_shell.te
+@@ -0,0 +1,2 @@
++# Qualcomm's init.qcom.post_boot.sh (/vendor/bin/sh) calls getprop/setprop/cat/mkswap/swapon from toolbox.
++allow qti_init_shell toolbox_exec:file { rx_file_perms execute_no_trans };
 diff --git a/sepolicy/system_server.te b/sepolicy/system_server.te
 index 9e71316..affc5b7 100644
 --- a/sepolicy/system_server.te

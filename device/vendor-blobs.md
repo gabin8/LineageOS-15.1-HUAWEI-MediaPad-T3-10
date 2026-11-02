@@ -31,6 +31,9 @@ statically linked), not from `vendor.img`, so `extract-files.sh` can't pull it. 
 EMUI 8 `RAMDISK` image (an Android boot image with only a ramdisk) and put it in
 `proprietary/vendor/bin/`. It must be the Oreo build: the Oreo `liboeminfo.so` speaks its protocol (README fix 51).
 
+`vendor/bin/init.qcom.post_boot.sh` is the **EMUI 8** vendor image's copy (msm8917 tuning). The Nougat copy at
+`vendor/etc/init.qcom.post_boot.sh` is no longer shipped; nothing ran it (README fix 55).
+
 These six were first only `pm disable`d (README fix 12), which lives in `/data` and is lost on every fresh install.
 
 Shims these blobs need live in `device/libshims` (`libshim_procname`).
