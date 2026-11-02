@@ -49,6 +49,7 @@ with that signature appended → RSA fails → orange "unlocked" warning → boo
 | **WiFi** (WCN3660B / pronto, prima built into the kernel): scan + connect, 2.4 + 5 GHz | ✅ |
 | WiFi hotspot | ❓ untested (builtin prima ignores `fwpath`; AP mode needs `con_mode`) |
 | Accelerometer + auto-rotate (mCube MC3xxx via the ADSP sensor core); lock screen rotates too (Settings → Display → Rotate lock screen) | ✅ |
+| LiveDisplay adaptive backlight (panel CABC); no adaptive brightness: the T3 10 has no light sensor | ✅ |
 | GPS / real IZAT location | ❌ gnss is a stub HAL; QC location stack disabled (incompatible libs) |
 
 ## The fix chain (what it took to boot)
@@ -415,6 +416,21 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     `com.qualcomm.location`, `CNEService`, `colorservice`, `SVIService`, `CABLService` and `QtiTetherService`
     are now removed from the vendor image (`ags_w09-vendor.mk`, `proprietary-files.txt`). Wi-Fi, location
     (fused/GPS stub/passive) and SELinux are unaffected.
+49. **No adaptive brightness: the T3 10 has no ambient light sensor** (`device/device-tree.patch`, overlays).
+    Huawei lists only a gravity sensor; every AGS device tree in stock's boot image declares no light sensor
+    (their phones' trees do), and the ADSP sensor core finds only the accelerometer and the SAR chip. The
+    device tree inherited a phone's `config_automatic_brightness_available=true` with automatic brightness on
+    by default, so Settings offered it and the slider only moved an auto-brightness offset. Now off (framework
+    overlay, which this build installs as `/vendor/overlay/framework-res__auto_generated_rro.apk`, and the
+    SettingsProvider default).
+50. **LiveDisplay "Adaptive backlight" via the panel's CABC** (`kernel/lcdkit-cabc-restore.patch`, device
+    `lineagehw/AdaptiveBacklight.java`, `device/sepolicy`, ramdisk `init.qcom.rc`). LiveDisplay used Qualcomm's
+    FOSS/CABL path, which needs the display post-processing daemon this build doesn't run ("Unable to set
+    adaptive backlight state!"). Huawei's lcdkit driver exposes the BOE NT51017 panel's own CABC as
+    `/sys/class/graphics/fb0/lcd_cabc_mode` (0 off, 1 UI mode: register `0x96` = `00`/`c0`). The panel's power-on
+    sequence always sets `96 c0` (stock: CABC always on), so the kernel now re-sends the mode userspace chose
+    after every panel power-on. The node gets its own SELinux type (`sysfs_lcd_cabc`), writable by
+    system_server.
 
 ## Build & flash (outline)
 

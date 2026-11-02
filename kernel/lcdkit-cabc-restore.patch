@@ -1,0 +1,92 @@
+diff --git a/drivers/devkit/lcdkit/core/common/lcdkit_panel.c b/drivers/devkit/lcdkit/core/common/lcdkit_panel.c
+index 0be4ceb3..f8a5ef9b 100755
+--- a/drivers/devkit/lcdkit/core/common/lcdkit_panel.c
++++ b/drivers/devkit/lcdkit/core/common/lcdkit_panel.c
+@@ -109,19 +109,14 @@ static ssize_t lcdkit_cabc_mode_show(char* buf)
+   *@pdata: this void point is used to converte to fb data struct.
+   *@buf: the value of cabc mode to be set
+ */
+-static ssize_t lcdkit_cabc_mode_store(void* pdata, const char* buf)
+-{
+-    int ret = 0;
+-    unsigned long val = 0;
+-
+-    ret = strict_strtoul(buf, 0, &val);
+-
+-    if (ret)
+-    {
+-        LCDKIT_ERR("invalid data!\n");
+-        return -EINVAL;
+-    }
++/*
++ * The panel's on-sequence resets CABC to its default, so once userspace has
++ * picked a mode it is re-sent after every panel power-on.
++ */
++static bool lcdkit_cabc_mode_user_set;
+ 
++static int lcdkit_cabc_mode_apply(void* pdata, unsigned long val)
++{
+     switch (val)
+     {
+         case CABC_OFF :
+@@ -144,6 +139,35 @@ static ssize_t lcdkit_cabc_mode_store(void* pdata, const char* buf)
+             return -EINVAL;
+     }
+ 
++    return 0;
++}
++
++void lcdkit_restore_cabc_mode(void* pdata)
++{
++    if (lcdkit_info.panel_infos.cabc_support && lcdkit_cabc_mode_user_set)
++    {
++        lcdkit_cabc_mode_apply(pdata, lcdkit_info.panel_infos.cabc_mode);
++        LCDKIT_INFO("restored cabc_mode = %d\n", lcdkit_info.panel_infos.cabc_mode);
++    }
++}
++
++static ssize_t lcdkit_cabc_mode_store(void* pdata, const char* buf)
++{
++    int ret = 0;
++    unsigned long val = 0;
++
++    ret = strict_strtoul(buf, 0, &val);
++
++    if (ret)
++    {
++        LCDKIT_ERR("invalid data!\n");
++        return -EINVAL;
++    }
++
++    if (lcdkit_cabc_mode_apply(pdata, val))
++        return -EINVAL;
++
++    lcdkit_cabc_mode_user_set = true;
+     lcdkit_info.panel_infos.cabc_mode = (int)val;
+     LCDKIT_INFO("cabc_mode = %d\n", lcdkit_info.panel_infos.cabc_mode);
+ 
+diff --git a/drivers/devkit/lcdkit/core/common/qcom/lcdkit_dsi_panel.c b/drivers/devkit/lcdkit/core/common/qcom/lcdkit_dsi_panel.c
+index de0f844b..2912e2e7 100755
+--- a/drivers/devkit/lcdkit/core/common/qcom/lcdkit_dsi_panel.c
++++ b/drivers/devkit/lcdkit/core/common/qcom/lcdkit_dsi_panel.c
+@@ -328,6 +328,8 @@ int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
+         }
+     }
+ 
++    lcdkit_restore_cabc_mode(ctrl);
++
+     if (is_lcdkit_mipiclk_enable())
+     {
+         ctrl->pclk_rate = get_lcdkit_mipiclk_dbg();
+diff --git a/drivers/devkit/lcdkit/include/lcdkit_panel.h b/drivers/devkit/lcdkit/include/lcdkit_panel.h
+index e158094c..c31ed0df 100755
+--- a/drivers/devkit/lcdkit/include/lcdkit_panel.h
++++ b/drivers/devkit/lcdkit/include/lcdkit_panel.h
+@@ -893,6 +893,7 @@ int lcdkit_fake_update_bl(void *pdata, uint32_t bl_level);
+ void lcdkit_fps_scence_adaptor_handle(struct platform_device* pdev, uint32_t scence);
+ void lcdkit_fps_updt_adaptor_handle(void* pdata);
+ void lcdkit_fps_timer_adaptor_init(void);
++void lcdkit_restore_cabc_mode(void* pdata);
+ int lcdkit_lread_reg(void *pdata, uint32_t *out, struct lcdkit_dsi_cmd_desc* cmds, uint32_t len);
+ ssize_t host_panel_oem_info_show(void* pdata, char *buf);
+ ssize_t host_panel_oem_info_store(void* pdata, char *buf);

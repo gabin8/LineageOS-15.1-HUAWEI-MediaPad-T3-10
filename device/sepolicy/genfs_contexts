@@ -1,3 +1,4 @@
 genfscon proc /wifi_built_in u:object_r:proc_wifi_built_in:s0
 genfscon sysfs /bus/platform/drivers/hw_audio_info/hw_audio_info u:object_r:sysfs_hw_audio_info:s0
 genfscon sysfs /devices/soc/soc:gpio-leds/leds u:object_r:sysfs_leds:s0
+genfscon sysfs /devices/virtual/graphics/fb0/lcd_cabc_mode u:object_r:sysfs_lcd_cabc:s0

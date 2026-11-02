@@ -58,6 +58,9 @@ on boot
     # (WIFI_DRIVER_STATE_CTRL_PARAM). Stock does the same via wlan.driver.trigger.
     chown wifi wifi /proc/wifi_built_in/wifi_start
     chmod 0220 /proc/wifi_built_in/wifi_start
+    # LiveDisplay adaptive backlight: Huawei lcdkit panel CABC (0 = off, 1 = UI mode)
+    chown system system /sys/class/graphics/fb0/lcd_cabc_mode
+    chmod 0664 /sys/class/graphics/fb0/lcd_cabc_mode
 
 service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
     -ip2p0 -Dnl80211 -c/data/misc/wifi/p2p_supplicant.conf \
