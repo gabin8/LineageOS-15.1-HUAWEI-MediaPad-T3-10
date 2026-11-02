@@ -469,6 +469,15 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     clients limited to system components, not every app) and runs the EMUI 8 `init.qcom.post_boot.sh`
     (msm8937, soc 303 = 8917 branch) on boot completion: interactive governor with Qualcomm's 8917 tuning,
     HMP scheduler settings, `bw_hwmon` bus governor, `core_ctl` off, 1 GB zRAM. Idle cores now sit at 960 MHz.
+56. **Remaining log messages, checked and harmless** (Huawei's audio files are shared with models that have
+    more audio hardware): `ACDB ANC returned = -19` (no ANC); `audio_route: Control 'SpkrMono WSA_RDAC' /
+    'VISENSE Switch' / 'MI2S_DL_HL Switch' doesn't exist` (paths for an external WSA speaker amp this tablet
+    doesn't have); `unknown enum value 16000 for Internal BTSCO SampleRate` (Bluetooth audio, BT not up);
+    `cpe0_state` and `sound_trigger ... platform init failed` (no codec processing engine for hotword
+    detection); `set/get_master_volume: not implemented` (normal, Android does volume); `init_be_dai_name_table`
+    (this kernel's machine driver has no "Backend DAI Name Table" control, so the HAL uses the default app type;
+    playback and calibration unaffected); `QC-time-services ... get_service_list returned -2` (no modem QMI time
+    service on the Wi-Fi model; RTC is used).
 
 ## Build & flash (outline)
 
