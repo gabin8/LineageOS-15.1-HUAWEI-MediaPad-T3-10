@@ -150,3 +150,19 @@ on early-init
     # system_server's wakelock stats read /d/wakeup_sources (3.18 has no /proc/wakelocks);
     # without debugfs it logs a WTF ("neither /proc/wakelocks nor /d/wakeup_sources exists")
     mount debugfs debugfs /sys/kernel/debug mode=0755
+
+# ---------------------------------------------------------------------------------------
+# Huawei oeminfo service: the sensors HAL reads the factory accelerometer calibration from
+# the oeminfo partition through it (stock started /sbin/oeminfo_nvm_server at early-fs).
+# 3.18 puts the eMMC at /devices/soc/..., so ueventd never makes /dev/block/bootdevice,
+# which the daemon (and other Qualcomm/Huawei blobs) expect.
+on init
+    symlink /dev/block/platform/soc/7824900.sdhci /dev/block/bootdevice
+
+on post-fs
+    start oeminfo_nvm
+
+service oeminfo_nvm /vendor/bin/oeminfo_nvm_server
+    class core
+    ioprio rt 4
+    disabled

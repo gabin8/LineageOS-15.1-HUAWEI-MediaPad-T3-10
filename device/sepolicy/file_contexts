@@ -29,3 +29,4 @@
 
 # Huawei kernel log nodes
 /dev/hwlog_[a-z]+				u:object_r:hwlog_device:s0
+/(vendor|system/vendor)/bin/oeminfo_nvm_server	u:object_r:oeminfo_nvm_exec:s0

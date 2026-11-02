@@ -24,6 +24,13 @@ In `device/huawei/ags_w09/proprietary-files.txt`, comment out the two entries so
 | `vendor/app/SVIService`, `vendor/app/CABLService`, `vendor/app/colorservice` | Qualcomm display post-processing (sunlight visibility, content-adaptive backlight, colour modes); need the `ppd`/`mm-pp-dpps` daemon, not started → "SVI Settings stopped" |
 | `vendor/app/com.qualcomm.location`, `vendor/app/CNEService` | run in the system process on A7-era libs (`libizat_core` needs a missing symbol); a crash takes system_server down. GNSS is a stub HAL, CNE isn't needed on Wi-Fi |
 
+## Blob not in the vendor image: `oeminfo_nvm_server`
+
+`vendor/bin/oeminfo_nvm_server` comes from the **EMUI 8 boot ramdisk** (`/sbin/oeminfo_nvm_server`,
+statically linked), not from `vendor.img`, so `extract-files.sh` can't pull it. Take it from the AGS-W09
+EMUI 8 `RAMDISK` image (an Android boot image with only a ramdisk) and put it in
+`proprietary/vendor/bin/`. It must be the Oreo build: the Oreo `liboeminfo.so` speaks its protocol (README fix 51).
+
 These six were first only `pm disable`d (README fix 12), which lives in `/data` and is lost on every fresh install.
 
 Shims these blobs need live in `device/libshims` (`libshim_procname`).

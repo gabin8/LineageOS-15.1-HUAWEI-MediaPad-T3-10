@@ -354,10 +354,10 @@ index d580073..500c56a 100644
 +# Huawei kernel log nodes (/dev/hwlog_*), opened by the kernel's own log workers
 +type hwlog_device, dev_type;
 diff --git a/sepolicy/file_contexts b/sepolicy/file_contexts
-index 3b9210d..ef6e8ac 100644
+index 3b9210d..8248b55 100644
 --- a/sepolicy/file_contexts
 +++ b/sepolicy/file_contexts
-@@ -13,3 +13,19 @@
+@@ -13,3 +13,20 @@
  
  # Light HAL
  /(vendor|system/vendor)/bin/hw/android\.hardware\.light@2\.0-service\.xiaomi_8917 u:object_r:hal_light_default_exec:s0
@@ -377,6 +377,7 @@ index 3b9210d..ef6e8ac 100644
 +
 +# Huawei kernel log nodes
 +/dev/hwlog_[a-z]+				u:object_r:hwlog_device:s0
++/(vendor|system/vendor)/bin/oeminfo_nvm_server	u:object_r:oeminfo_nvm_exec:s0
 diff --git a/sepolicy/fsck.te b/sepolicy/fsck.te
 index 1500b5f..2676d21 100644
 --- a/sepolicy/fsck.te
@@ -384,6 +385,39 @@ index 1500b5f..2676d21 100644
 @@ -1 +1,2 @@
  allow fsck persist_block_device:blk_file rw_file_perms;
 +allow fsck vendor_block_device:blk_file rw_file_perms;
+diff --git a/sepolicy/oeminfo_nvm.te b/sepolicy/oeminfo_nvm.te
+new file mode 100644
+index 0000000..3b19ea0
+--- /dev/null
++++ b/sepolicy/oeminfo_nvm.te
+@@ -0,0 +1,27 @@
++# Huawei oeminfo_nvm_server: serves the oeminfo partition over /dev/socket/oeminfo_nvm.
++# The sensors HAL reads the factory accelerometer calibration through it (liboeminfo rmt_oeminfo_read).
++type oeminfo_nvm, domain;
++type oeminfo_nvm_exec, exec_type, vendor_file_type, file_type;
++type oeminfo_nvm_socket, file_type;
++# /dev/oinv: the daemon hands each request's data over in a file there, chowned to the client
++type oeminfo_nvm_device, dev_type;
++init_daemon_domain(oeminfo_nvm)
++
++allow oeminfo_nvm block_device:dir search;
++allow oeminfo_nvm block_device:lnk_file read;
++allow oeminfo_nvm oeminfo_block_device:blk_file rw_file_perms;
++
++allow oeminfo_nvm socket_device:dir rw_dir_perms;
++allow oeminfo_nvm oeminfo_nvm_socket:sock_file { create setattr unlink };
++type_transition oeminfo_nvm socket_device:sock_file oeminfo_nvm_socket;
++
++allow oeminfo_nvm device:dir { write add_name };
++type_transition oeminfo_nvm device:dir oeminfo_nvm_device "oinv";
++allow oeminfo_nvm oeminfo_nvm_device:dir create_dir_perms;
++allow oeminfo_nvm oeminfo_nvm_device:file create_file_perms;
++allow oeminfo_nvm self:capability { chown fowner fsetid };
++
++# Only the sensors HAL talks to it (the daemon can also write oeminfo).
++unix_socket_connect(hal_sensors_default, oeminfo_nvm, oeminfo_nvm)
++allow hal_sensors_default oeminfo_nvm_device:dir rw_dir_perms;
++allow hal_sensors_default oeminfo_nvm_device:file { r_file_perms unlink };
 diff --git a/sepolicy/system_server.te b/sepolicy/system_server.te
 index 9e71316..affc5b7 100644
 --- a/sepolicy/system_server.te

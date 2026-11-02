@@ -431,6 +431,16 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     sequence always sets `96 c0` (stock: CABC always on), so the kernel now re-sends the mode userspace chose
     after every panel power-on. The node gets its own SELinux type (`sysfs_lcd_cabc`), writable by
     system_server.
+51. **Factory accelerometer calibration** (`device/sepolicy/oeminfo_nvm.te`, ramdisk `init.qcom.rc`,
+    `device/vendor-blobs.md`). The sensors HAL (`sensors.ssc.so`) reads the factory offsets from the oeminfo
+    partition via `liboeminfo` → `rmt_oeminfo_read` → Huawei's `oeminfo_nvm_server` (socket
+    `/dev/socket/oeminfo_nvm`, data handed over as files in `/dev/oinv`). Stock started that daemon from its
+    own boot ramdisk, so it never ran here (`load_acc_oeminf_data: load data from oeminfo failed`, offsets 0).
+    The EMUI 8 ramdisk's static `/sbin/oeminfo_nvm_server` now runs from `/vendor/bin` in its own
+    `oeminfo_nvm` domain (oeminfo partition, its socket and `/dev/oinv`; only the sensors HAL may connect,
+    since the daemon can also write oeminfo). It expects `/dev/block/bootdevice`, which ueventd never creates
+    on 3.18 (`/devices/soc/...`), so init links it. Result: `load_acc_oeminf_data x_offset:-0.015317
+    y_offset:-0.031746 z_offset:0.999460`.
 
 ## Build & flash (outline)
 
