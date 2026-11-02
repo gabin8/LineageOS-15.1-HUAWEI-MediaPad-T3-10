@@ -400,6 +400,8 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     GateKeeper HAL"). With the entry and `product/gatekeeper.mk` (impl + service) removed, `gatekeeperd`
     falls back to AOSP's software GateKeeper; set/verify/clear PIN works. On an existing install: remove the
     `<hal>` block from `/vendor/manifest.xml` and `/vendor/lib{,64}/hw/android.hardware.gatekeeper@1.0-impl.so`.
+    (Four `gatekeeperd` tombstones from 2026-10-30, "Unable to open GateKeeper HAL", date from the
+    manifest-only step; none since.)
 46. **Phantom fingerprint support**: Huawei's shared vendor set ships `android.hardware.fingerprint.xml`
     though the T3 10 has no sensor, so FingerprintService kept looking for a HAL. Not shipped any more
     (`device/vendor-blobs.md`).
@@ -517,6 +519,39 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
     `DEC1 Volume` 90 (84 = 0 dB). VoIP (AEC/NS devices), camcorder and voice-recognition capture keep stock's
     paths, and DEC1 returns to 0 dB when the recording stops. Measured with a 1 kHz tone played through the
     speaker into the Recorder: -47.1 / -47.7 dBFS before, -41.8 / -41.8 dBFS after.
+62. **Two app denials on every boot, silenced** (`device/sepolicy/untrusted_app.te`, `device/sepolicy/app.te`).
+    ContactsProvider (`android.process.acore`, about 85 s after boot when the keyboard first queries the user
+    dictionary) reads total RAM through `MemInfoReader`, whose JNI also probes `/sys/block/zram0/`. Apps may not
+    read `sysfs_zram` (AOSP grants it to `system_server` only), so the probe returns 0; ContactsProvider only
+    uses `MemTotal`. Gallery reads `qemu.hw.mainkeys`, which Qualcomm's policy keeps to `system_server`; the
+    property is unset here, so Gallery's default applies either way. Both are `dontaudit` rules, no new access.
+63. **ANT+ removed** (`device/device-tree.patch`: `product/ant.mk`, `board/ant.mk` deleted). Stock ships no ANT
+    stack, and ANT needs Bluetooth, which isn't up. AntHalService runs inside `system_server`; once its code
+    was compiled into `/data/dalvik-cache` (e.g. by `cmd package compile --reset -a`), `system_server`, which
+    may not execute code from `/data`, logged `execute`/`write` denials at boot. On an existing install, also
+    move `/vendor/etc/permissions/com.dsi.ant.antradio_library.xml` away.
+64. **Stale Huawei 8.0 init scripts in `/vendor/etc/init`** (vendor tree; `proprietary-files.txt`). `gatekeeperd`,
+    `keystore`, `lmkd`, `logd`, `mdnsd`, `netd`, `uncrypt`, `vdc`, `vold`, `debuggerd` and `debuggerd64` `.rc`
+    were older copies of system services. init ignored their service blocks ("ignored duplicate definition"),
+    but `vdc.rc`'s `on defaultcrypto` / `on encrypt` triggers would have run their `vdc` commands twice on an
+    encrypted install. Removed, along with an `android.hardware.sensors@1.0-service.rc.orig` backup that init
+    also parsed. The one remaining duplicate, `light-hal-2-0`, is deliberate (the ramdisk defines it too). On an
+    existing install, move those files out of `/vendor/etc/init`.
+65. **`system_server` WTF "No service published for: trust" at boot**
+    (`frameworks/lineage-sdk-notification-lights-lazy-keyguard.patch`). NotificationManagerService builds
+    `LineageNotificationLights` before TrustManagerService starts; its constructor asked for `KeyguardManager`,
+    which needs the trust service, so it got null and `isKeyguardLocked()` returned false for the whole uptime.
+    The `KeyguardManager` is now fetched on first use.
+66. **`system_server` WTF "Sending non-protected broadcast lineageos.intent.action.LID_STATE_CHANGED"**
+    (`frameworks/lineage-sdk-lid-state-protected-broadcast.patch`). PhoneWindowManager broadcasts the cover
+    (hall sensor) state; lineage-sdk now declares it a protected broadcast, so only the system can send it.
+67. **Stale parsed manifests after re-flashing system.** PackageManager caches each parsed system APK in
+    `/data/system/package_cache` and only clears the cache when `ro.build.fingerprint` changes. This build keeps
+    Huawei's stock fingerprint, and every file in a flashed image has the same 2009 timestamp, so a changed
+    system APK still passes the cache check and its old manifest is used (code is read from the APK itself, so
+    only manifest-level changes such as permissions, components or protected broadcasts are affected). Found
+    when fix 66 kept logging its WTF until the cache was removed. A clean install has no cache; on an update,
+    remove it once with the framework stopped (see Build & flash, step 5).
 
 ## Build & flash (outline)
 
@@ -536,8 +571,9 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
 #    *_contexts built from the tree (mka selinux_policy nonplat_property_contexts ...).
 # 5. Flash userspace, keep stock boot on the partition, RAM-boot the signed image:
 fastboot flash system system.img && fastboot flash vendor vendor.img
-#    Re-flashing system over an existing install: afterwards run
-#    adb shell cmd package compile --reset -a     (see fix 44 - stale JIT profiles)
+#    Re-flashing system over an existing install: after the first boot run
+#    adb shell 'stop; rm -rf /data/system/package_cache; start'   (fix 67 - stale parsed manifests)
+#    adb shell cmd package compile --reset -a                     (fix 44 - stale JIT profiles)
 fastboot flash boot <stock boot.bin>          # safe partition — do NOT flash the custom image
 fastboot boot boot.img                          # RAM-boot (the ONLY path that works for our bad-sig img)
 # 6. On device (adb, main-boot serial 0123456789ABCDEF), apply the /vendor fixes once:

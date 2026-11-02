@@ -1,0 +1,12 @@
+diff --git a/lineage/res/AndroidManifest.xml b/lineage/res/AndroidManifest.xml
+index aa4e0f5..f0b2d77 100644
+--- a/lineage/res/AndroidManifest.xml
++++ b/lineage/res/AndroidManifest.xml
+@@ -23,6 +23,7 @@
+     android:sharedUserLabel="@string/lineageos_system_label">
+ 
+     <protected-broadcast android:name="lineageos.intent.action.SCREEN_CAMERA_GESTURE" />
++    <protected-broadcast android:name="lineageos.intent.action.LID_STATE_CHANGED" />
+     <protected-broadcast android:name="lineageos.intent.action.INITIALIZE_LINEAGE_HARDWARE" />
+     <protected-broadcast android:name="lineageos.intent.action.ACTION_AUDIO_SESSIONS_CHANGED" />
+     <protected-broadcast android:name="lineageos.platform.intent.action.PROFILE_SELECTED" />

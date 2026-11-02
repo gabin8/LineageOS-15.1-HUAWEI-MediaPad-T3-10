@@ -1,3 +1,11 @@
+diff --git a/board/ant.mk b/board/ant.mk
+deleted file mode 100644
+index e7535b8..0000000
+--- a/board/ant.mk
++++ /dev/null
+@@ -1,2 +0,0 @@
+-# ANT
+-BOARD_ANT_WIRELESS_DEVICE := "vfs-prerelease"
 diff --git a/board/wlan.mk b/board/wlan.mk
 index 2f798a2..3675ded 100644
 --- a/board/wlan.mk
@@ -288,6 +296,21 @@ index 86e7580..5416d29 100644
 -    <bool name="def_screen_brightness_automatic_mode">true</bool>
 +    <bool name="def_screen_brightness_automatic_mode">false</bool>
  </resources>
+diff --git a/product/ant.mk b/product/ant.mk
+deleted file mode 100644
+index 04dd05e..0000000
+--- a/product/ant.mk
++++ /dev/null
+@@ -1,9 +0,0 @@
+-# ANT
+-PRODUCT_PACKAGES += \
+-    AntHalService \
+-    com.dsi.ant.antradio_library \
+-    libantradio
+-
+-# Permissions
+-PRODUCT_COPY_FILES += \
+-    external/ant-wireless/antradio-library/com.dsi.ant.antradio_library.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/com.dsi.ant.antradio_library.xml
 diff --git a/product/camera.mk b/product/camera.mk
 index 308e057..ba2814d 100644
 --- a/product/camera.mk

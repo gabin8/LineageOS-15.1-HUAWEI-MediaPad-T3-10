@@ -1,1 +1,2 @@
 dontaudit untrusted_app_all property_type:file { getattr open read };
+dontaudit untrusted_app_all sysfs_zram:dir search;
