@@ -4,6 +4,10 @@
 both cameras, auto-rotate, charging and WebView. See the table below for what's left. As far as
 I know this is the first time this exact unit (Snapdragon T3, **not** the Kirin AGS2) has fully booted a from-source LineageOS.
 
+**Android 10:** a LineageOS 17.1 port is in progress at
+[LineageOS-17.1-HUAWEI-MediaPad-T3-10](https://github.com/gabin8/LineageOS-17.1-HUAWEI-MediaPad-T3-10)
+(not bootable yet; this 15.1 port stays maintained).
+
 - **Device:** Huawei MediaPad T3 10, model **AGS-W09** (Wi‑Fi only), codename **agassi / ags_w09**
 - **SoC:** Qualcomm Snapdragon 425 / MSM8917 (msm8937 family), 4 cores, 2 GB RAM
 - **Target:** LineageOS 15.1 (Android 8.1), 3.18 kernel
