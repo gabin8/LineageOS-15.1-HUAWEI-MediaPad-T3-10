@@ -564,7 +564,8 @@ Ordered roughly as the boot progresses. Everything here is in this kit.
 ```bash
 # 1. Kernel: drop kernel/binder/* into drivers/staging/android/, set the binder devices config,
 #    apply kernel/prima-mdns-filter-oops.patch, kernel/oreo-camera-v2.patch,
-#    kernel/lcdkit-cabc-restore.patch and kernel/backend-dai-name-table.patch,
+#    kernel/lcdkit-cabc-restore.patch, kernel/backend-dai-name-table.patch and
+#    kernel/panel-node-name.patch (DT panel node named as the eng aboot passes it),
 #    (optionally) apply kernel/ambient-caps-3.18.patch, build Image.gz (GCC 4.9 aarch64).
 # 2. DTB:  python3 scripts/patch_dtb.py <dtb> <out.dtb> --ramoops
 # 3. Ramdisk: apply ramdisk/* (init.rc charger patch; init.qcom.rc, init.usb.rc, default.prop,
